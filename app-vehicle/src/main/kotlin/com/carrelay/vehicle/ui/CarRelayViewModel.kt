@@ -1,0 +1,505 @@
+package com.carrelay.vehicle.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.carrelay.core.care.CareDailySummary
+import com.carrelay.core.care.CareEffect
+import com.carrelay.core.care.CareEvent
+import com.carrelay.core.care.CareModeMonitor
+import com.carrelay.core.handover.HandoverBriefingBuilder
+import com.carrelay.core.memo.MemoBoard
+import com.carrelay.core.model.DoorEvent
+import com.carrelay.core.model.Driver
+import com.carrelay.core.model.DrivingSample
+import com.carrelay.core.model.Gear
+import com.carrelay.core.model.MemoPreset
+import com.carrelay.core.model.Signal
+import com.carrelay.core.model.SignalStatus
+import com.carrelay.core.model.VehicleSnapshot
+import com.carrelay.core.session.DriverSessionTracker
+import com.carrelay.core.session.SessionEffect
+import com.carrelay.core.session.SessionState
+import com.carrelay.core.shift.ContinuousDrivingClock
+import com.carrelay.core.shift.DriverRecommender
+import com.carrelay.core.shift.ShiftAdvisor
+import com.carrelay.vehicle.AppContainer
+import com.carrelay.vehicle.CarRelayApplication
+import com.carrelay.vehicle.data.AppData
+import com.carrelay.vehicle.data.FakeVehicleGateway
+import com.carrelay.vehicle.data.GuardianAlert
+import com.carrelay.vehicle.data.SeedData
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.UUID
+
+/**
+ * 차량 앱의 두뇌. 차량 신호를 받아 core 로직(세션·브리핑·교대·케어)에 넣고, 결과를 화면 상태로 만듭니다.
+ */
+class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
+
+    private val gateway = container.gateway
+    private val speaker = container.speaker
+
+    /** 가상 차량일 때만 값이 있습니다('가상 차량' 패널용). */
+    val simulatedCar: FakeVehicleGateway? = gateway as? FakeVehicleGateway
+
+    private var data = AppData()
+    private var tracker: DriverSessionTracker? = null
+    private val drivingClock = ContinuousDrivingClock(hourOf = { localHour(it) })
+    private val shiftAdvisor = ShiftAdvisor()
+    private var careMonitor = CareModeMonitor()
+    private var lastGear: Gear = Gear.UNKNOWN
+
+    private val _ui = MutableStateFlow(UiState(sourceName = gateway.sourceName, isSimulated = gateway.isSimulated))
+    val ui: StateFlow<UiState> = _ui.asStateFlow()
+
+    init {
+        viewModelScope.launch { bootstrap() }
+    }
+
+    private suspend fun bootstrap() {
+        data = container.store.load()
+        val t = DriverSessionTracker(data.lastDriverId) { UUID.randomUUID().toString() }
+        data.activeSession?.let { t.restore(it) }
+        tracker = t
+        careMonitor = CareModeMonitor(careConfig(data.demoFastThresholds))
+
+        gateway.start()
+        container.uxMonitor.start()
+        refreshSnapshot()
+        _ui.update { it.copy(loading = false, screen = Screen.PICKER) }
+        publishData()
+
+        viewModelScope.launch { gateway.driving.collect { onDrivingSample(it) } }
+        viewModelScope.launch { gateway.driverDoorEvents.collect { onDoor(it) } }
+        viewModelScope.launch { container.uxMonitor.requiresDistractionOptimization.collect { updateDrivingUi() } }
+        viewModelScope.launch {
+            var seconds = 0
+            while (true) {
+                delay(1_000)
+                // 차량 값이 그대로여도 시간은 흐르므로 1초마다 타이머를 진행합니다.
+                feedRealtime(gateway.driving.value.copy(timestampMillis = now()), fromTick = true)
+                seconds++
+                if (seconds % 10 == 0) refreshSnapshot()
+            }
+        }
+    }
+
+    // ── 차량 신호 처리 ─────────────────────────────────────
+
+    private fun onDrivingSample(sample: DrivingSample) {
+        val t = tracker ?: return
+        if (sample.gear != lastGear) {
+            val previous = lastGear
+            lastGear = sample.gear
+            handleSessionEffects(t.onGear(sample.gear, now(), _ui.value.snapshot?.odometerKm))
+            if (sample.gear == Gear.PARK && previous.isDriveGear) onParked()
+        }
+        feedRealtime(sample, fromTick = false)
+        updateDrivingUi()
+    }
+
+    private fun feedRealtime(sample: DrivingSample, fromTick: Boolean) {
+        if (tracker == null) return
+        drivingClock.onSample(sample)
+        _ui.update { it.copy(driving = sample, continuousMillis = drivingClock.continuousMillis) }
+
+        val driver = currentDriver() ?: return
+        if (driver.careModeEnabled) {
+            handleCareEffects(careMonitor.onSample(sample, detectDecel = !fromTick), driver)
+        }
+        if (sample.gear.isDriveGear) evaluateShift(driver)
+    }
+
+    private fun onDoor(event: DoorEvent) {
+        val t = tracker ?: return
+        handleSessionEffects(t.onDriverDoor(event))
+    }
+
+    private fun updateDrivingUi() {
+        val restricted = container.uxMonitor.requiresDistractionOptimization.value == true ||
+            gateway.driving.value.gear.isDriveGear
+        _ui.update { s ->
+            val screen = when {
+                restricted -> Screen.DRIVING
+                s.screen == Screen.DRIVING -> Screen.HOME
+                else -> s.screen
+            }
+            s.copy(drivingUi = restricted, screen = screen)
+        }
+    }
+
+    private fun onParked() {
+        val driver = currentDriver()
+        _ui.update { it.copy(screen = Screen.MEMO, parkedPrompt = true, shiftAdvice = null, careCheckIn = null) }
+        viewModelScope.launch {
+            val snap = refreshSnapshot()
+            if (driver != null) {
+                data = data.copy(lastSeen = data.lastSeen + (driver.id to snap))
+                persist()
+            }
+        }
+        speaker.speak("주차하셨네요. 다음 운전자에게 남길 메모가 있으면 눌러 주세요.")
+    }
+
+    private fun evaluateShift(driver: Driver) {
+        val s = _ui.value
+        if (s.shiftAdvice != null || s.careCheckIn != null) return
+        val others = data.drivers.filter { it.id != driver.id }.map { it to data.conditions[it.id] }
+        val advice = shiftAdvisor.evaluate(
+            continuousMillis = drivingClock.continuousMillis,
+            nightMillis = drivingClock.nightMillis,
+            current = driver,
+            currentCondition = data.conditions[driver.id],
+            others = others,
+        ) ?: return
+        _ui.update { it.copy(shiftAdvice = advice) }
+        speaker.speak(advice.message)
+    }
+
+    private fun handleCareEffects(effects: List<CareEffect>, driver: Driver) {
+        if (effects.isEmpty()) return
+        val at = now()
+        for (effect in effects) {
+            when (effect) {
+                is CareEffect.Record -> data = data.copy(
+                    careEvents = (data.careEvents + CareEvent(driver.id, effect.type, at, effect.reason))
+                        .takeLast(MAX_CARE_EVENTS),
+                )
+                is CareEffect.AskAreYouOk -> {
+                    _ui.update { it.copy(careCheckIn = effect.reason, shiftAdvice = null) }
+                    speaker.speak("${driver.name}님, 괜찮으세요? 괜찮으시면 화면의 괜찮아요 버튼을 눌러 주세요.")
+                }
+                is CareEffect.AddRestStopWaypoint -> viewModelScope.launch {
+                    toast(container.navigator.addNearestRestStop())
+                    speaker.speak("응답이 없어 가까운 졸음쉼터를 경유지로 추가했어요. 잠시 쉬어 가세요.")
+                }
+                is CareEffect.NotifyGuardian -> viewModelScope.launch {
+                    val location = container.navigator.currentLocationText()
+                    val alert = GuardianAlert(
+                        driverId = driver.id,
+                        atMillis = at,
+                        message = "${driver.name}님이 운전 중 안부 확인에 응답하지 않았어요. " +
+                            "상황: ${effect.reason.label}. 위치: $location",
+                    )
+                    container.guardianNotifier.send(alert)
+                    data = data.copy(guardianAlerts = (data.guardianAlerts + alert).takeLast(MAX_ALERTS))
+                    publishData()
+                    persist()
+                    toast("${driver.guardianName ?: "보호자"}님께 알림을 보냈어요")
+                }
+                CareEffect.CloseCheckIn -> _ui.update { it.copy(careCheckIn = null) }
+            }
+        }
+        publishData()
+        persist()
+    }
+
+    private fun handleSessionEffects(effects: List<SessionEffect>) {
+        if (effects.isEmpty()) return
+        val t = tracker ?: return
+        for (effect in effects) {
+            when (effect) {
+                is SessionEffect.ShowBriefing -> {
+                    resetRealtimeMonitors()
+                    viewModelScope.launch { showBriefing(effect.driverId) }
+                }
+                is SessionEffect.AutoAssigned -> {
+                    resetRealtimeMonitors()
+                    toast("운전자를 선택하지 않아 ${nameOf(effect.session.driverId)}님으로 기록해요 (미확인)")
+                }
+                is SessionEffect.SessionEnded -> {
+                    val ended = effect.session
+                    val snap = _ui.value.snapshot
+                    data = data.copy(
+                        sessions = (data.sessions + ended).takeLast(MAX_SESSIONS),
+                        lastSeen = if (snap != null) data.lastSeen + (ended.driverId to snap) else data.lastSeen,
+                    )
+                }
+                SessionEffect.AskDriverChanged -> {
+                    _ui.update { it.copy(screen = Screen.PICKER, askingDriverChange = true) }
+                    speaker.speak("운전자 바뀌셨나요?")
+                }
+                SessionEffect.KeptSameDriver -> _ui.update { it.copy(askingDriverChange = false) }
+            }
+        }
+        val awaitingLast = (t.state as? SessionState.AwaitingDriver)?.lastDriverId
+        data = data.copy(
+            activeSession = t.currentSession,
+            lastDriverId = t.currentSession?.driverId ?: awaitingLast ?: data.lastDriverId,
+        )
+        publishData()
+        persist()
+    }
+
+    private suspend fun showBriefing(driverId: String) {
+        val driver = driverById(driverId)
+        val snap = refreshSnapshot()
+        val briefing = HandoverBriefingBuilder.build(
+            driver = driver,
+            current = snap,
+            lastSeen = data.lastSeen[driverId],
+            memos = data.memos,
+            nameOf = ::nameOf,
+            nowMillis = now(),
+        )
+        _ui.update { it.copy(screen = Screen.BRIEFING, briefing = briefing, askingDriverChange = false) }
+        updateDrivingUi()
+        speaker.speak(briefing.speech)
+    }
+
+    private suspend fun refreshSnapshot(): VehicleSnapshot {
+        val snap = try {
+            gateway.readStatus()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            VehicleSnapshot(now(), unavailable = Signal.entries.associateWith { SignalStatus.FAILED })
+        }
+        _ui.update { it.copy(snapshot = snap) }
+        return snap
+    }
+
+    // ── 화면에서 부르는 동작 ───────────────────────────────
+
+    fun selectDriver(driverId: String) {
+        val t = tracker ?: return
+        val effects = t.selectDriver(driverId, now(), _ui.value.snapshot?.odometerKm)
+        if (effects == null) {
+            toast("기어 P에서 선택할 수 있어요")
+            return
+        }
+        handleSessionEffects(effects)
+        if (SessionEffect.KeptSameDriver in effects) {
+            viewModelScope.launch { showBriefing(driverId) }
+        }
+    }
+
+    /** 재확인 화면의 '그대로 운전해요' */
+    fun keepSameDriver() {
+        val id = tracker?.currentSession?.driverId ?: return
+        selectDriver(id)
+    }
+
+    /** 브리핑 '확인했어요': 보여 준 메모를 읽음 처리하고, 이 시점을 '마지막 확인'으로 저장합니다. */
+    fun acknowledgeBriefing() {
+        val briefing = _ui.value.briefing ?: return
+        val driverId = briefing.driver.id
+        var memos = data.memos
+        val at = now()
+        briefing.unresolvedMemos.forEach { memos = MemoBoard.markRead(memos, it.id, driverId, at) }
+        data = data.copy(memos = memos, lastSeen = data.lastSeen + (driverId to briefing.current))
+        speaker.stop()
+        _ui.update { it.copy(screen = Screen.HOME, briefing = null) }
+        publishData()
+        persist()
+    }
+
+    fun replayBriefing() {
+        val driver = currentDriver() ?: return
+        viewModelScope.launch { showBriefing(driver.id) }
+    }
+
+    fun addMemo(preset: MemoPreset) {
+        val author = currentDriver()?.id ?: Driver.GUEST_ID
+        data = data.copy(memos = MemoBoard.add(data.memos, UUID.randomUUID().toString(), author, now(), preset = preset))
+        toast("메모를 남겼어요. 다음 운전자에게 전달돼요")
+        publishData()
+        persist()
+    }
+
+    fun resolveMemo(memoId: String, note: String) {
+        val by = currentDriver()?.id ?: Driver.GUEST_ID
+        data = data.copy(memos = MemoBoard.resolve(data.memos, memoId, by, note, now()))
+        val b = _ui.value.briefing
+        if (b != null) {
+            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now())
+            _ui.update { it.copy(briefing = rebuilt) }
+        }
+        toast("해결로 기록했어요. 차량 경고등 상태는 따로 표시돼요")
+        publishData()
+        persist()
+    }
+
+    /** '운전 끝내기': 다음 운전자에게 넘깁니다. */
+    fun handOver() {
+        val t = tracker ?: return
+        handleSessionEffects(t.endSession(now(), _ui.value.snapshot?.odometerKm))
+        _ui.update { it.copy(screen = Screen.PICKER, parkedPrompt = false) }
+    }
+
+    fun navigate(screen: Screen) {
+        if (_ui.value.drivingUi) return
+        _ui.update { it.copy(screen = screen, askingDriverChange = false, parkedPrompt = false) }
+    }
+
+    fun answerCareCheckIn() {
+        val driver = currentDriver() ?: return
+        handleCareEffects(careMonitor.onDriverAnswered(now()), driver)
+        _ui.update { it.copy(careCheckIn = null) }
+        speaker.speak("알겠어요. 안전 운전하세요.")
+    }
+
+    fun acceptShift() {
+        _ui.update { it.copy(shiftAdvice = null) }
+        viewModelScope.launch {
+            val msg = container.navigator.addNearestRestStop()
+            toast(msg)
+            speaker.speak("휴게소를 경유지로 추가했어요.")
+        }
+    }
+
+    fun declineShift() {
+        _ui.update { it.copy(shiftAdvice = null) }
+    }
+
+    /** 케어 모드는 운전자 본인의 동의로만 켜고 끕니다(화면에서 동의 확인 후 호출). */
+    fun setCareMode(driverId: String, enabled: Boolean) {
+        data = data.copy(drivers = data.drivers.map { if (it.id == driverId) it.copy(careModeEnabled = enabled) else it })
+        if (currentDriver()?.id == driverId) careMonitor.reset()
+        publishData()
+        persist()
+    }
+
+    fun setDemoFast(enabled: Boolean) {
+        data = data.copy(demoFastThresholds = enabled)
+        careMonitor = CareModeMonitor(careConfig(enabled))
+        publishData()
+        persist()
+    }
+
+    fun setVoiceEnabled(enabled: Boolean) {
+        speaker.enabled = enabled
+        if (!enabled) speaker.stop()
+        _ui.update { it.copy(voiceEnabled = enabled) }
+    }
+
+    /** 시연용: 연속 주행 시간을 앞당깁니다. */
+    fun debugAddDrivingTime(minutes: Int) {
+        drivingClock.addDrivingTime(minutes * 60_000L, night = localHour(now()) in 0..4)
+        _ui.update { it.copy(continuousMillis = drivingClock.continuousMillis) }
+    }
+
+    /** 모든 기록을 지우고 시연용 기본 파티로 되돌립니다(주차 중에만). */
+    fun resetAllData() {
+        if (_ui.value.drivingUi) return
+        data = SeedData.initial()
+        val t = DriverSessionTracker(null) { UUID.randomUUID().toString() }
+        t.onGear(gateway.driving.value.gear, now(), null)
+        tracker = t
+        lastGear = gateway.driving.value.gear
+        resetRealtimeMonitors()
+        careMonitor = CareModeMonitor(careConfig(false))
+        _ui.update { it.copy(screen = Screen.PICKER, briefing = null) }
+        toast("기록을 초기화했어요")
+        publishData()
+        persist()
+    }
+
+    fun onPermissionsChanged() = gateway.onPermissionsChanged()
+
+    fun clearToast() = _ui.update { it.copy(toast = null) }
+
+    // ── 내부 도우미 ───────────────────────────────────────
+
+    private fun resetRealtimeMonitors() {
+        drivingClock.reset()
+        shiftAdvisor.reset()
+        careMonitor.reset()
+        _ui.update { it.copy(shiftAdvice = null, careCheckIn = null) }
+    }
+
+    private fun publishData() {
+        val t = tracker
+        val session = t?.currentSession
+        val awaitingLast = (t?.state as? SessionState.AwaitingDriver)?.lastDriverId
+        val todayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val todaySessions = (data.sessions + listOfNotNull(session)).filter { it.startedAtMillis >= todayStart }
+        val todayEvents = data.careEvents.filter { it.atMillis >= todayStart }
+        val summaries = data.drivers.filter { it.careModeEnabled }.map { d ->
+            CareDailySummary.from(d.id, d.name, todaySessions, todayEvents, now()) { localHour(it) }
+        }
+        _ui.update {
+            it.copy(
+                drivers = data.drivers,
+                currentDriver = session?.let { s -> driverById(s.driverId) },
+                sessionConfirmed = session?.confirmed ?: true,
+                lastDriverId = session?.driverId ?: awaitingLast ?: data.lastDriverId,
+                canSelectDriver = t?.canSelectDriver ?: true,
+                memos = data.memos,
+                conditions = data.conditions,
+                recommendation = DriverRecommender.recommend(data.drivers, data.conditions),
+                sessions = data.sessions,
+                careEvents = data.careEvents,
+                careSummaries = summaries,
+                guardianAlerts = data.guardianAlerts,
+                demoFastThresholds = data.demoFastThresholds,
+            )
+        }
+    }
+
+    /** 화면이 닫혀도 저장은 끝까지 하도록 앱 범위에서 실행합니다. */
+    private fun persist() {
+        val snapshot = data
+        container.appScope.launch { container.store.save(snapshot) }
+    }
+
+    private fun toast(message: String) = _ui.update { it.copy(toast = message) }
+
+    private fun currentDriver(): Driver? = tracker?.currentSession?.let { driverById(it.driverId) }
+
+    private fun driverById(id: String): Driver =
+        data.drivers.firstOrNull { it.id == id }
+            ?: if (id == Driver.GUEST_ID) Driver.GUEST else Driver(id = id, name = "알 수 없음")
+
+    private fun nameOf(id: String): String = driverById(id).name
+
+    private fun now(): Long = System.currentTimeMillis()
+
+    private fun careConfig(fast: Boolean): CareModeMonitor.Config =
+        if (fast) {
+            CareModeMonitor.Config(
+                recordAfterMillis = 10_000L,
+                askAfterMillis = 15_000L,
+                responseTimeoutMillis = 10_000L,
+                guardianAfterWaypointMillis = 10_000L,
+                cooldownAfterAnswerMillis = 30_000L,
+            )
+        } else {
+            CareModeMonitor.Config()
+        }
+
+    override fun onCleared() {
+        gateway.stop()
+        container.uxMonitor.stop()
+        speaker.stop()
+    }
+
+    companion object {
+        private const val MAX_CARE_EVENTS = 500
+        private const val MAX_SESSIONS = 300
+        private const val MAX_ALERTS = 100
+
+        fun localHour(epochMillis: Long): Int =
+            Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).hour
+
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app = this[APPLICATION_KEY] as CarRelayApplication
+                CarRelayViewModel(app.container)
+            }
+        }
+    }
+}

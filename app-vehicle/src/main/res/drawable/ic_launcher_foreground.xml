@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 서로 이어지는 두 화살표: 운전자 사이의 '릴레이' -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M30,40 L62,40 L62,32 L78,46 L62,60 L62,52 L30,52 Z" />
+    <path
+        android:fillColor="#FF7FD6C2"
+        android:pathData="M78,62 L46,62 L46,54 L30,68 L46,82 L46,74 L78,74 Z" />
+</vector>
