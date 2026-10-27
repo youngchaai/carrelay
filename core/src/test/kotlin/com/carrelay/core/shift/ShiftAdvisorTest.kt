@@ -5,6 +5,7 @@ import com.carrelay.core.model.DriverCondition
 import com.carrelay.core.model.DrivingSample
 import com.carrelay.core.model.Gear
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -78,14 +79,15 @@ class ShiftAdvisorTest {
     }
 
     @Test
-    fun `컨디션 차이가 분명할 때만 오늘의 운전자를 추천한다`() {
+    fun `컨디션 단계 차이가 있을 때만 추천하고 수면 시간은 보여주지 않는다`() {
         val drivers = listOf(dad, mom, Driver.GUEST)
         val rec = DriverRecommender.recommend(
             drivers,
             mapOf("dad" to DriverCondition("dad", 4.0), "mom" to DriverCondition("mom", 7.0)),
         )!!
         assertEquals("mom", rec.driverId)
-        assertEquals("오늘 장거리는 엄마님이 운전하는 걸 추천해요 (엄마 수면 7시간 / 아빠 수면 4시간)", rec.message)
+        assertEquals("오늘 장거리는 엄마님이 운전하는 걸 추천해요 (엄마 좋음 / 아빠 휴식 필요)", rec.message)
+        assertFalse(rec.message.contains("수면"))
 
         assertNull(
             DriverRecommender.recommend(

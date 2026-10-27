@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.carrelay.core.model.Driver
-import com.carrelay.core.text.KoreanText
 import com.carrelay.vehicle.BuildConfig
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.components.BigOutlinedButton
@@ -58,10 +57,9 @@ fun SettingsScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(d.name, style = MaterialTheme.typography.titleMedium)
+                        // 차량 화면은 모두가 보므로 3단계만 보여 줍니다(수면 시간 등 원래 수치는 본인 폰에서만).
                         Text(
-                            condition?.let { c ->
-                                "컨디션 ${c.level.label}" + (c.sleepHours?.let { " · 수면 ${KoreanText.hours(it)} (샘플)" } ?: "")
-                            } ?: "컨디션 정보 없음",
+                            condition?.let { c -> "컨디션 ${c.level.label}" } ?: "컨디션 정보 없음",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
