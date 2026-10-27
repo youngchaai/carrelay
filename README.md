@@ -83,7 +83,9 @@ flowchart LR
 
 자세한 순서: [docs/01_개발환경_세팅.md](docs/01_개발환경_세팅.md)
 
-단위 테스트(차량 없이 PC에서): `core/src/test` 우클릭 → Run Tests, 또는 `gradlew :core:test`
+단위 테스트(차량 없이 PC에서): `core/src/test` 우클릭 → Run Tests, 또는 `gradlew.bat :core:test` (현재 32개 통과)
+
+> Windows 사용자 이름이 한글이면 프로젝트를 영문 경로(예: `C:\dev\carrelay`)에 두고 `GRADLE_USER_HOME` 을 영문 경로로 지정해야 빌드됩니다. → [docs/01 0번](docs/01_개발환경_세팅.md#0-windows-사용자-이름이-한글이면-중요)
 
 ### 시연 순서 (시나리오 A: 주말 장거리 여행)
 
@@ -123,7 +125,7 @@ flowchart LR
 | 항목 | 버전 | 근거 |
 |---|---|---|
 | Android Studio | 최신 안정판 | Pleos 안내 |
-| JDK | 17 이상 (Android Studio 내장 JBR) | Pleos 샘플 앱 기준선 |
+| JDK (Gradle 실행용) | 17~23 (예: JetBrains Runtime 21) | Gradle 8.10.2 지원 범위. Android Studio 내장 JDK 25 는 사용 불가 |
 | Gradle / AGP | 8.10.2 / 8.8.2 | 공식 요건 Gradle 8.0 이상 |
 | Kotlin | 2.0.0, Jetpack Compose | 공식 요건 Java·Kotlin |
 | compileSdk / targetSdk / minSdk | 35 / 35 / **28** | 공식 요건 minSdk 28 이상 (차량 사이버 보안) |
