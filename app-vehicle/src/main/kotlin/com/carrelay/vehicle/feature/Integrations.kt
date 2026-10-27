@@ -11,7 +11,10 @@ interface RestStopNavigator {
     /** 결과를 화면·음성으로 알려 줄 문장을 돌려줍니다. */
     suspend fun addNearestRestStop(): String
 
-    /** 보호자 알림에 넣을 현재 위치 설명. 위치는 케어 모드 3단계에서만 사용합니다. */
+    /**
+     * 보호자 알림에 넣을 현재 위치 설명. 위치는 케어 모드 3단계에서만 사용합니다.
+     * TODO(확장): Pleos FusedLocation SDK 로 현재 위치를 받아 주소/좌표로 바꿉니다.
+     */
     suspend fun currentLocationText(): String
 }
 

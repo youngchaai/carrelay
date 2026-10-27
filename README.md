@@ -4,6 +4,8 @@
 
 현대자동차그룹 차량용 앱 개발 공모전 출품작 · Pleos Connect (Android Automotive OS)
 
+**바로가기**: [실행 방법](#실행-방법) · [테스트 환경 및 필요한 설정](#테스트-환경-및-필요한-설정) · [APK](#apk)
+
 ---
 
 ## 해결하려는 문제
@@ -69,7 +71,7 @@ flowchart LR
 │  ├─ src/main/          화면·ViewModel·가상 차량·AAOS Car API
 │  ├─ src/simulated/     carrelay.pleosSdk=false 일 때: 가상 차량 연결
 │  └─ src/pleos/         carrelay.pleosSdk=true 일 때: Pleos Vehicle SDK 연결
-├─ apk/                  제출용 release APK
+├─ apk/                  제출용 release APK (팀명_CarRelay_release.apk)
 └─ docs/                 개발환경 · 아키텍처 · 일정 · 기획 결정 사항
 ```
 
@@ -101,17 +103,61 @@ flowchart LR
 4. 무응답이면 쉼터 경유지 추가(시뮬레이션) → 보호자 알림 기록
 5. **기록** 화면에서 하루 요약 확인
 
-## 개발 환경
+## 테스트 환경 및 필요한 설정
+
+### 테스트 환경
+
+| 항목 | 내용 |
+|---|---|
+| 에뮬레이터 | **Pleos Connect Emulator v2.1.0** (Android 14, API 34) |
+| 시스템 이미지 | Pleos Connect v2.1.0 APIs Intel x86_64 Atom System Image |
+| AVD 설정 | Form Factor **Automotive** → **Pleos Connect v2.1.0**, Default boot **Cold**, RAM **4 GB** |
+| 차량 값 조작 | Pleos Connect Virtual Console, 또는 앱 안의 **가상 차량** 패널 |
+| 대체 환경 | 일반 Android Automotive AVD 에서도 가상 차량 모드로 전체 흐름 실행 가능 |
+| 네트워크 | 필요 없음 (모든 데이터는 기기에 저장) |
+
+> 현재 검증은 에뮬레이터 기준입니다. 실제 차량에서는 아직 시험하지 않았습니다.
+
+### 빌드 환경
 
 | 항목 | 버전 | 근거 |
 |---|---|---|
 | Android Studio | 최신 안정판 | Pleos 안내 |
 | JDK | 17 이상 (Android Studio 내장 JBR) | Pleos 샘플 앱 기준선 |
-| Gradle / AGP | 8.10.2 / 8.8.2 | Pleos 샘플 앱 기준선 |
-| Kotlin | 2.0.0, Jetpack Compose | |
-| compileSdk / targetSdk / minSdk | 35 / 35 / 28 | minSdk 28: Pleos Playground 배포 조건 |
-| 에뮬레이터 | Pleos Connect Emulator v2.1.0 (API 34) | Pleos 안내 |
+| Gradle / AGP | 8.10.2 / 8.8.2 | 공식 요건 Gradle 8.0 이상 |
+| Kotlin | 2.0.0, Jetpack Compose | 공식 요건 Java·Kotlin |
+| compileSdk / targetSdk / minSdk | 35 / 35 / **28** | 공식 요건 minSdk 28 이상 (차량 사이버 보안) |
 | Vehicle SDK | `ai.pleos.playground:Vehicle:2.3.2` | Pleos 문서 (2026-10-27 확인) |
+
+### 필요한 설정
+
+1. **차량 데이터 모드** (`gradle.properties`, 바꾼 뒤 Gradle Sync)
+
+   | 값 | 차량 데이터 | 용도 |
+   |---|---|---|
+   | `carrelay.pleosSdk=false` (기본) | 가상 차량 | 어떤 Automotive AVD 에서나 시연 |
+   | `carrelay.pleosSdk=true` | Pleos Vehicle SDK + AAOS Car API | Pleos AVD + Virtual Console |
+
+2. **권한**: Pleos 차량 권한(`pleos.car.permission.CAR_DOORS`, `CAR_ENERGY`, `CAR_SAFETY`, `CAR_DRIVE`)은 매니페스트에 선언되어 있어 따로 허용할 필요가 없습니다. SDK 모드로 처음 실행하면 속도 권한(`android.car.permission.CAR_SPEED`)을 묻는데, **허용**을 눌러 주세요.
+3. **음성 안내**: Android 기본 TTS(한국어)를 씁니다. 에뮬레이터에 한국어 음성이 없으면 소리 없이 화면으로만 안내합니다. 설정 화면에서 끌 수 있습니다.
+4. **시연용 설정**: 설정 → **빠른 판단**을 켜면 케어 모드 안부 확인을 2분 대신 15초 정차로 볼 수 있습니다.
+5. 처음 실행하면 시연용 파티(아빠·엄마·딸·할아버지)와 샘플 컨디션 데이터가 들어 있습니다. 설정 → **기록 초기화**로 언제든 처음 상태로 돌릴 수 있습니다.
+
+자세한 설치 순서: [docs/01_개발환경_세팅.md](docs/01_개발환경_세팅.md)
+
+## APK
+
+| 항목 | 내용 |
+|---|---|
+| 위치 | [`apk/`](apk/) 폴더 · 파일 이름 `팀명_CarRelay_release.apk` |
+| 상태 | **제출 전 업로드 예정** (release 서명 빌드) |
+| 설치 | AVD 를 켠 뒤 APK 파일을 에뮬레이터 창에 끌어다 놓거나, 아래 명령 실행 |
+
+```bash
+adb install apk/팀명_CarRelay_release.apk
+```
+
+APK 가 GitHub 파일 용량 제한을 넘으면 [GitHub Releases](../../releases) 에 올리고 여기에 링크를 남깁니다.
 
 ## Pleos SDK 사용 계획
 
@@ -125,6 +171,7 @@ flowchart LR
 | 운전자별 거리·연속 주행 | Vehicle SDK Odometer (CAR_DRIVE) | 함수명 확인 후 연결 (현재는 앱 자체 시계) |
 | 케어 모드 무조작 판단 | Vehicle SDK Brake (CAR_DRIVE) | 함수명 확인 후 연결 |
 | 쉼터·휴게소 경유지 | NaviHelper SDK | 확장 (현재 시뮬레이션) |
+| 보호자 알림의 현재 위치 (케어 모드 3단계에서만) | FusedLocation SDK | 확장 (현재 시뮬레이션) |
 | 음성 안내 | TextToSpeech SDK (신청) → 미승인 시 Android 기본 TTS | Android TTS 사용 중 |
 
 모든 Vehicle SDK 호출은 `checkXxxCapabilities` 로 지원 여부를 먼저 확인하고, 미지원이면 브리핑에 "지원하지 않아요"로 표시합니다.
