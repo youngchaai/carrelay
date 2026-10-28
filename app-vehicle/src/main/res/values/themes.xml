@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.CarRelay" parent="android:Theme.Material.NoActionBar">
+    <!-- 낮: 밝은 테마. 밤은 values-night/themes.xml -->
+    <style name="Theme.CarRelay" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/carrelay_background</item>
-        <item name="android:statusBarColor">@color/carrelay_background</item>
-        <item name="android:navigationBarColor">@color/carrelay_background</item>
     </style>
 </resources>

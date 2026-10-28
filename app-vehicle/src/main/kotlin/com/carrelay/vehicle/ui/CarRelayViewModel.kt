@@ -10,10 +10,19 @@ import com.carrelay.core.care.CareDailySummary
 import com.carrelay.core.care.CareEffect
 import com.carrelay.core.care.CareEvent
 import com.carrelay.core.care.CareModeMonitor
+import com.carrelay.core.driving.DrivingEvent
+import com.carrelay.core.driving.DrivingEventDetector
 import com.carrelay.core.handover.HandoverBriefingBuilder
+import com.carrelay.core.incident.IncidentLog
 import com.carrelay.core.memo.MemoBoard
+import com.carrelay.core.model.CarZone
 import com.carrelay.core.model.DoorEvent
 import com.carrelay.core.model.Driver
+import com.carrelay.core.model.IncidentSource
+import com.carrelay.core.model.IncidentStatus
+import com.carrelay.core.model.IncidentType
+import com.carrelay.core.model.Inspection
+import com.carrelay.core.profile.LicenseCheck
 import com.carrelay.core.model.DrivingSample
 import com.carrelay.core.model.Gear
 import com.carrelay.core.model.MemoPreset
@@ -61,6 +70,11 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     private val shiftAdvisor = ShiftAdvisor()
     private var careMonitor = CareModeMonitor()
     private var lastGear: Gear = Gear.UNKNOWN
+    private val eventDetector = DrivingEventDetector()
+    /** 이번 브리핑(인수 점검)에서 이상을 신고했는지 */
+    private var foundIncidentThisBriefing = false
+    /** 신고 화면을 닫으면 돌아갈 화면 */
+    private var returnAfterReport: Screen = Screen.HOME
 
     private val _ui = MutableStateFlow(UiState(sourceName = gateway.sourceName, isSimulated = gateway.isSimulated))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -114,7 +128,25 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     private fun feedRealtime(sample: DrivingSample, fromTick: Boolean) {
         if (tracker == null) return
         drivingClock.onSample(sample)
-        _ui.update { it.copy(driving = sample, continuousMillis = drivingClock.continuousMillis) }
+        // 시각만 바뀐 1초 틱은 화면 상태를 새로 만들지 않습니다(불필요한 다시 그리기 방지).
+        _ui.update {
+            val sameSample = it.driving?.copy(timestampMillis = 0L) == sample.copy(timestampMillis = 0L)
+            if (sameSample && it.continuousMillis == drivingClock.continuousMillis) it
+            else it.copy(driving = sample, continuousMillis = drivingClock.continuousMillis)
+        }
+
+        // 모든 운전자의 급정거·급가속 (차량에서 온 실제 샘플만)
+        if (!fromTick) {
+            val event = eventDetector.onSample(sample)
+            if (event != null) {
+                tracker?.addDrivingEvent(
+                    harshDecel = if (event == DrivingEvent.HARSH_DECEL) 1 else 0,
+                    harshAccel = if (event == DrivingEvent.HARSH_ACCEL) 1 else 0,
+                )
+                data = data.copy(activeSession = tracker?.currentSession)
+                persist()
+            }
+        }
 
         val driver = currentDriver() ?: return
         if (driver.careModeEnabled) {
@@ -143,7 +175,16 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun onParked() {
         val driver = currentDriver()
-        _ui.update { it.copy(screen = Screen.MEMO, parkedPrompt = true, shiftAdvice = null, careCheckIn = null) }
+        val harsh = tracker?.currentSession?.harshDecelCount ?: 0
+        _ui.update {
+            it.copy(
+                screen = Screen.MEMO, parkedPrompt = true, shiftAdvice = null, careCheckIn = null,
+                parkedHarshDecel = harsh, afterDriveChecked = false,
+            )
+        }
+        if (harsh > 0) {
+            speaker.speak("운행 중 급정거가 ${harsh}번 있었어요. 차에 이상이 있으면 신고해 주세요.")
+        }
         viewModelScope.launch {
             val snap = refreshSnapshot()
             if (driver != null) {
@@ -151,7 +192,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                 persist()
             }
         }
-        speaker.speak("주차하셨네요. 다음 운전자에게 남길 메모가 있으면 눌러 주세요.")
+        if (harsh == 0) speaker.speak("주차하셨네요. 다음 운전자에게 남길 메모가 있으면 눌러 주세요.")
     }
 
     private fun evaluateShift(driver: Driver) {
@@ -170,6 +211,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private fun handleCareEffects(effects: List<CareEffect>, driver: Driver) {
+        _ui.update { it.copy(careStage = careMonitor.stage) }
         if (effects.isEmpty()) return
         val at = now()
         for (effect in effects) {
@@ -214,6 +256,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             when (effect) {
                 is SessionEffect.ShowBriefing -> {
                     resetRealtimeMonitors()
+                    foundIncidentThisBriefing = false
                     viewModelScope.launch { showBriefing(effect.driverId) }
                 }
                 is SessionEffect.AutoAssigned -> {
@@ -254,6 +297,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             memos = data.memos,
             nameOf = ::nameOf,
             nowMillis = now(),
+            incidents = data.incidents,
         )
         _ui.update { it.copy(screen = Screen.BRIEFING, briefing = briefing, askingDriverChange = false) }
         updateDrivingUi()
@@ -300,7 +344,18 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         var memos = data.memos
         val at = now()
         briefing.unresolvedMemos.forEach { memos = MemoBoard.markRead(memos, it.id, driverId, at) }
-        data = data.copy(memos = memos, lastSeen = data.lastSeen + (driverId to briefing.current))
+        // 인수 점검 기록: 이번 브리핑에서 이상을 신고하지 않았으면 '이상 없음'
+        val inspection = Inspection(
+            driverId = driverId,
+            atMillis = at,
+            ok = !foundIncidentThisBriefing,
+            incidentId = if (foundIncidentThisBriefing) data.incidents.lastOrNull()?.id else null,
+        )
+        data = data.copy(
+            memos = memos,
+            lastSeen = data.lastSeen + (driverId to briefing.current),
+            inspections = (data.inspections + inspection).takeLast(MAX_SESSIONS),
+        )
         speaker.stop()
         _ui.update { it.copy(screen = Screen.HOME, briefing = null) }
         publishData()
@@ -325,10 +380,73 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         data = data.copy(memos = MemoBoard.resolve(data.memos, memoId, by, note, now()))
         val b = _ui.value.briefing
         if (b != null) {
-            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now())
+            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now(), data.incidents)
             _ui.update { it.copy(briefing = rebuilt) }
         }
         toast("해결로 기록했어요. 차량 경고등 상태는 따로 표시돼요")
+        publishData()
+        persist()
+    }
+
+    // ── 사고·파손 신고 / 인수 점검 ─────────────────────────
+
+    /** 신고 화면 열기. AT_PICKUP = 넘겨받으며 발견, AFTER_DRIVE = 운행 후 스스로 신고 */
+    fun startReport(source: IncidentSource) {
+        if (_ui.value.drivingUi) return
+        returnAfterReport = _ui.value.screen
+        _ui.update { it.copy(screen = Screen.REPORT, reportSource = source) }
+    }
+
+    fun cancelReport() {
+        _ui.update { it.copy(screen = returnAfterReport) }
+    }
+
+    fun submitIncident(type: IncidentType, zones: Set<CarZone>, alreadyHandled: Boolean) {
+        if (_ui.value.screen != Screen.REPORT) return // 두 번 눌러도 한 건만
+        val reporter = currentDriver()?.id ?: Driver.GUEST_ID
+        val source = _ui.value.reportSource
+        val at = now()
+        val id = UUID.randomUUID().toString()
+        var list = IncidentLog.report(
+            data.incidents, id, reporter, type, zones, source, at,
+            previousSession = if (source == IncidentSource.AT_PICKUP) data.sessions.lastOrNull() else null,
+        )
+        if (alreadyHandled) {
+            list = IncidentLog.updateStatus(list, id, IncidentStatus.IN_PROGRESS, "보험·정비 접수", reporter, at)
+        }
+        data = data.copy(incidents = list.takeLast(MAX_INCIDENTS))
+        if (source == IncidentSource.AT_PICKUP) foundIncidentThisBriefing = true
+        _ui.update { it.copy(afterDriveChecked = true) }
+        toast("신고했어요. 처리 완료 전까지 모든 운전자에게 보여요")
+        speaker.speak("신고했어요. 처리가 끝날 때까지 다음 운전자에게도 알려 드릴게요.")
+        publishData()
+        persist()
+        // 브리핑에서 왔으면 같은 브리핑에 새 신고를 넣어 바로 돌아갑니다(인수 점검 계속).
+        val back = returnAfterReport
+        val b = _ui.value.briefing
+        if (back == Screen.BRIEFING && b != null) {
+            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, at, data.incidents)
+            _ui.update { it.copy(screen = Screen.BRIEFING, briefing = rebuilt) }
+        } else {
+            _ui.update { it.copy(screen = if (back == Screen.BRIEFING) Screen.HOME else back) }
+        }
+    }
+
+    /** 주차 후 "차에 이상이 있나요?" → 이상 없어요 */
+    fun markAfterDriveOk() {
+        _ui.update { it.copy(afterDriveChecked = true) }
+        toast("이상 없음으로 기록했어요")
+    }
+
+    fun updateIncidentStatus(id: String, status: IncidentStatus, note: String) {
+        val by = currentDriver()?.id ?: Driver.GUEST_ID
+        data = data.copy(incidents = IncidentLog.updateStatus(data.incidents, id, status, note, by, now()))
+        val b = _ui.value.briefing
+        if (b != null) {
+            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now(), data.incidents)
+            _ui.update { it.copy(briefing = rebuilt) }
+        }
+        toast(if (status == IncidentStatus.RESOLVED) "처리 완료로 바꿨어요" else "'${status.label}'(으)로 바꿨어요")
         publishData()
         persist()
     }
@@ -418,7 +536,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         drivingClock.reset()
         shiftAdvisor.reset()
         careMonitor.reset()
-        _ui.update { it.copy(shiftAdvice = null, careCheckIn = null) }
+        eventDetector.reset()
+        _ui.update { it.copy(shiftAdvice = null, careCheckIn = null, careStage = CareModeMonitor.Stage.NORMAL) }
     }
 
     private fun publishData() {
@@ -431,8 +550,13 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         val summaries = data.drivers.filter { it.careModeEnabled }.map { d ->
             CareDailySummary.from(d.id, d.name, todaySessions, todayEvents, now()) { localHour(it) }
         }
+        val today = LocalDate.now()
+        val licenses = data.drivers.associate { d -> d.id to LicenseCheck.of(d, today.toEpochDay(), today.year) }
         _ui.update {
             it.copy(
+                vehicleName = data.vehicleName,
+                licenses = licenses,
+                incidents = data.incidents,
                 drivers = data.drivers,
                 currentDriver = session?.let { s -> driverById(s.driverId) },
                 sessionConfirmed = session?.confirmed ?: true,
@@ -491,6 +615,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         private const val MAX_CARE_EVENTS = 500
         private const val MAX_SESSIONS = 300
         private const val MAX_ALERTS = 100
+        private const val MAX_INCIDENTS = 200
 
         fun localHour(epochMillis: Long): Int =
             Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).hour

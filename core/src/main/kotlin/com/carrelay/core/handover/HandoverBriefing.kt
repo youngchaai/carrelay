@@ -1,7 +1,9 @@
 package com.carrelay.core.handover
 
+import com.carrelay.core.incident.IncidentLog
 import com.carrelay.core.memo.MemoBoard
 import com.carrelay.core.model.Driver
+import com.carrelay.core.model.Incident
 import com.carrelay.core.model.Memo
 import com.carrelay.core.model.Signal
 import com.carrelay.core.model.VehicleSnapshot
@@ -16,8 +18,11 @@ data class BriefingItem(
     /** 사람이 남긴 정보면 true. 차량 센서가 확인한 사실과 화면에서 구분합니다. */
     val fromPerson: Boolean = false,
     val memoId: String? = null,
+    val incidentId: String? = null,
 ) {
     enum class Kind {
+        /** 처리 안 된 사고·파손 (처리 완료 전까지 계속 표시) */
+        OPEN_INCIDENT,
         NEW_WARNING,
         ONGOING_WARNING,
         ENERGY_LOW,
@@ -76,8 +81,20 @@ object HandoverBriefingBuilder {
         memos: List<Memo>,
         nameOf: (driverId: String) -> String,
         nowMillis: Long,
+        incidents: List<Incident> = emptyList(),
     ): Briefing {
         val items = mutableListOf<BriefingItem>()
+
+        // 0) 처리 안 된 사고·파손: 처리 완료 전까지 모든 운전자에게 맨 위에 보여 줍니다.
+        IncidentLog.open(incidents).forEach { inc ->
+            items += BriefingItem(
+                BriefingItem.Kind.OPEN_INCIDENT,
+                priority = 110,
+                message = "${inc.status.label}: ${inc.summary} (${nameOf(inc.reporterId)} 신고)",
+                fromPerson = true,
+                incidentId = inc.id,
+            )
+        }
 
         // 1) 경고등: 지난 확인 이후 새로 켜진 것과 계속 켜져 있는 것을 구분
         val previousWarnings: Set<WarningLight> = lastSeen?.activeWarnings ?: emptySet()

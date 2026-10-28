@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="carrelay_background">#FF0F1418</color>
-    <color name="carrelay_icon_background">#FF0F5257</color>
+    <!-- 낮(밝은 테마). 밤 색은 values-night/colors.xml -->
+    <color name="carrelay_background">#FFF5F7F8</color>
+    <color name="carrelay_icon_background">#FF006B60</color>
 </resources>

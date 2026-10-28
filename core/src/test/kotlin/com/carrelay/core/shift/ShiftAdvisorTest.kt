@@ -28,6 +28,8 @@ class ShiftAdvisorTest {
         assertNotNull(advice)
         assertEquals("dad", advice!!.reliefDriverId)
         assertEquals("2시간 연속 운전 중이에요. 가까운 휴게소에서 아빠님과 교대하거나 쉬어 가실래요?", advice.message)
+        assertEquals("2시간 연속 운전 중이에요", advice.headline)
+        assertEquals("가까운 휴게소에서 아빠님과 교대하거나 쉬어 가실래요?", advice.detail)
     }
 
     @Test

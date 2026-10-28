@@ -2,14 +2,18 @@ package com.carrelay.vehicle.ui
 
 import com.carrelay.core.care.CareDailySummary
 import com.carrelay.core.care.CareEvent
+import com.carrelay.core.care.CareModeMonitor
 import com.carrelay.core.care.CareReason
 import com.carrelay.core.handover.Briefing
 import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.DriverCondition
 import com.carrelay.core.model.DrivingSample
+import com.carrelay.core.model.Incident
+import com.carrelay.core.model.IncidentSource
 import com.carrelay.core.model.Memo
 import com.carrelay.core.model.VehicleSnapshot
+import com.carrelay.core.profile.LicenseInfo
 import com.carrelay.core.shift.DriverRecommendation
 import com.carrelay.core.shift.ShiftAdvice
 import com.carrelay.vehicle.data.GuardianAlert
@@ -18,19 +22,22 @@ enum class Screen {
     /** 누가 운전하시나요? */
     PICKER,
 
-    /** 인수인계 브리핑 */
+    /** 인수인계 브리핑 + 인수 점검 */
     BRIEFING,
 
     /** 주차 중 기본 화면 */
     HOME,
 
-    /** 다음 운전자에게 메모 남기기 */
+    /** 다음 운전자에게 메모 남기기 / 주차 직후 마무리 */
     MEMO,
+
+    /** 사고·파손 신고 */
+    REPORT,
 
     /** 주행 중: 음성 + 큰 버튼만 */
     DRIVING,
 
-    /** 운전자별 기록 · 케어 요약 */
+    /** 운전자별 기록 · 케어 요약 · 사고 이력 */
     RECORDS,
 
     /** 프로필 · 케어 모드 · 시연 설정 */
@@ -42,6 +49,7 @@ data class UiState(
     val screen: Screen = Screen.PICKER,
     val sourceName: String = "",
     val isSimulated: Boolean = true,
+    val vehicleName: String = "",
 
     val drivers: List<Driver> = emptyList(),
     val currentDriver: Driver? = null,
@@ -53,6 +61,10 @@ data class UiState(
     val askingDriverChange: Boolean = false,
     /** 주차 직후 메모 화면으로 왔는지 */
     val parkedPrompt: Boolean = false,
+    /** 주차 직후: 이번 운전 구간의 급정거 횟수 */
+    val parkedHarshDecel: Int = 0,
+    /** 주차 직후 "차에 이상이 있나요?"에 답했는지 */
+    val afterDriveChecked: Boolean = false,
 
     val briefing: Briefing? = null,
     val snapshot: VehicleSnapshot? = null,
@@ -63,14 +75,21 @@ data class UiState(
 
     val recommendation: DriverRecommendation? = null,
     val conditions: Map<String, DriverCondition> = emptyMap(),
+    val licenses: Map<String, LicenseInfo> = emptyMap(),
     val shiftAdvice: ShiftAdvice? = null,
     val careCheckIn: CareReason? = null,
+    /** 안부 확인 진행 단계 (질문 중 → 쉼터 추가 → 보호자 알림) */
+    val careStage: CareModeMonitor.Stage = CareModeMonitor.Stage.NORMAL,
 
     val memos: List<Memo> = emptyList(),
     val sessions: List<DriveSession> = emptyList(),
     val careEvents: List<CareEvent> = emptyList(),
     val careSummaries: List<CareDailySummary> = emptyList(),
     val guardianAlerts: List<GuardianAlert> = emptyList(),
+    val incidents: List<Incident> = emptyList(),
+
+    /** 사고·파손 신고 화면을 연 경로 */
+    val reportSource: IncidentSource = IncidentSource.AFTER_DRIVE,
 
     val demoFastThresholds: Boolean = false,
     val voiceEnabled: Boolean = true,
@@ -80,3 +99,6 @@ data class UiState(
 fun UiState.nameOf(driverId: String): String =
     drivers.firstOrNull { it.id == driverId }?.name
         ?: if (driverId == Driver.GUEST_ID) Driver.GUEST.name else "알 수 없음"
+
+/** 가장 최근에 끝난 운전 구간 */
+val UiState.lastEndedSession: DriveSession? get() = sessions.lastOrNull()

@@ -43,10 +43,10 @@ fun VirtualConsolePanel(
 
     Column(
         modifier
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .verticalScroll(rememberScrollState())
             .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("가상 차량", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
@@ -75,14 +75,27 @@ fun VirtualConsolePanel(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ConsoleChip("급감속", enabled = car.gear.isDriveGear, modifier = Modifier.weight(1f)) { fake.hardBrake() }
-                ConsoleChip("페달 조작", enabled = car.gear.isDriveGear, modifier = Modifier.weight(1f)) { fake.tapPedal() }
+                ConsoleChip("급정거", enabled = car.gear.isDriveGear, modifier = Modifier.weight(1f)) { fake.hardBrake() }
+                ConsoleChip("급가속", enabled = car.gear.isDriveGear, modifier = Modifier.weight(1f)) { fake.hardAccelerate() }
+                ConsoleChip("페달\n조작", enabled = car.gear.isDriveGear, modifier = Modifier.weight(1f)) { fake.tapPedal() }
             }
             Text(
                 "브레이크 ${if (car.brakePressed) "밟음" else "뗌"} · 가속 ${if (car.acceleratorPressed) "밟음" else "뗌"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        // 시연에서 자주 쓰는 조작을 스크롤 없이 보이도록 위에 둡니다.
+        ConsoleGroup("문 · 시간") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ConsoleChip("운전석 문\n열고 닫기", enabled = car.gear == Gear.PARK, modifier = Modifier.weight(1f)) {
+                    fake.cycleDriverDoor()
+                }
+                ConsoleChip("연속 주행\n+30분", enabled = car.gear.isDriveGear, modifier = Modifier.weight(1f)) {
+                    onAddDrivingTime(30)
+                }
+            }
         }
 
         ConsoleGroup("연료 ${car.fuelPercent}%") {
@@ -92,7 +105,7 @@ fun VirtualConsolePanel(
                 ConsoleChip("12%", modifier = Modifier.weight(1f)) { fake.setFuel(12) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("연료 정보 지원", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text("연료 정보 지원", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 Switch(checked = car.energySupported, onCheckedChange = { fake.setEnergySupported(it) })
             }
         }
@@ -100,15 +113,6 @@ fun VirtualConsolePanel(
         ConsoleGroup("경고등") {
             WarningLight.entries.forEach { w ->
                 ConsoleChip(w.label, selected = w in car.warnings, modifier = Modifier.fillMaxWidth()) { fake.toggleWarning(w) }
-            }
-        }
-
-        ConsoleGroup("문 · 시간") {
-            ConsoleChip("운전석 문 열고 닫기", enabled = car.gear == Gear.PARK, modifier = Modifier.fillMaxWidth()) {
-                fake.cycleDriverDoor()
-            }
-            ConsoleChip("연속 주행 +30분", enabled = car.gear.isDriveGear, modifier = Modifier.fillMaxWidth()) {
-                onAddDrivingTime(30)
             }
         }
 
@@ -139,7 +143,7 @@ private fun ConsoleChip(
     val colors = MaterialTheme.colorScheme
     Surface(
         modifier = modifier
-            .heightIn(min = 52.dp)
+            .heightIn(min = 48.dp)
             .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = when {
@@ -151,7 +155,7 @@ private fun ConsoleChip(
     ) {
         Text(
             text,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 14.dp),
         )

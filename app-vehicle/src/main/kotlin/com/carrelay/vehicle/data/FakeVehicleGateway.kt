@@ -35,6 +35,8 @@ data class SimulatedCar(
     val targetSpeedKmh: Double = 0.0,
     /** true 면 급감속(약 7.5m/s²)으로 목표 속도까지 줄입니다. */
     val hardBraking: Boolean = false,
+    /** true 면 급가속(약 3.6m/s²)으로 목표 속도까지 올립니다. */
+    val hardAccelerating: Boolean = false,
     val brakePressed: Boolean = true,
     val acceleratorPressed: Boolean = false,
     /** false 로 두면 '연료 미지원 차량'을 흉내 냅니다(미지원 처리 시연용). */
@@ -74,17 +76,22 @@ class FakeVehicleGateway(
             c.copy(gear = gear)
         } else {
             // 시뮬레이션 단순화: P·N 으로 바꾸면 바로 정지
-            c.copy(gear = gear, speedKmh = 0.0, targetSpeedKmh = 0.0, hardBraking = false, acceleratorPressed = false)
+            c.copy(gear = gear, speedKmh = 0.0, targetSpeedKmh = 0.0, hardBraking = false, hardAccelerating = false, acceleratorPressed = false)
         }
     }
 
     fun setTargetSpeed(kmh: Double) = update { c ->
-        if (!c.gear.isDriveGear) c else c.copy(targetSpeedKmh = kmh.coerceIn(0.0, 180.0), hardBraking = false)
+        if (!c.gear.isDriveGear) c else c.copy(targetSpeedKmh = kmh.coerceIn(0.0, 180.0), hardBraking = false, hardAccelerating = false)
     }
 
     /** 현재 속도에서 40km/h 를 급하게 줄입니다. */
     fun hardBrake() = update { c ->
-        if (!c.gear.isDriveGear) c else c.copy(targetSpeedKmh = (c.speedKmh - 40.0).coerceAtLeast(0.0), hardBraking = true)
+        if (!c.gear.isDriveGear) c else c.copy(targetSpeedKmh = (c.speedKmh - 40.0).coerceAtLeast(0.0), hardBraking = true, hardAccelerating = false)
+    }
+
+    /** 현재 속도에서 30km/h 를 급하게 올립니다(약 3.6m/s², 급가속 기준 3.0m/s² 이상). */
+    fun hardAccelerate() = update { c ->
+        if (!c.gear.isDriveGear) c else c.copy(targetSpeedKmh = (c.speedKmh + 30.0).coerceAtMost(180.0), hardAccelerating = true, hardBraking = false)
     }
 
     /** 정차 중 페달을 한 번 떼었다 밟습니다(운전자 조작이 있었음을 흉내). */
@@ -109,7 +116,10 @@ class FakeVehicleGateway(
 
     private fun update(block: (SimulatedCar) -> SimulatedCar) {
         _car.update(block)
-        _driving.value = sampleOf(_car.value)
+        // 목표 속도만 바뀐 조작은 아직 차 상태가 그대로이므로 새 샘플을 내지 않습니다
+        // (틱 사이에 끼어든 샘플이 가속도 계산을 튀게 하지 않도록).
+        val next = sampleOf(_car.value)
+        if (next.copy(timestampMillis = 0L) != _driving.value.copy(timestampMillis = 0L)) _driving.value = next
     }
 
     // ── VehicleGateway ─────────────────────────────────────
@@ -168,6 +178,7 @@ class FakeVehicleGateway(
         if (!c.gear.isDriveGear) return c
         val diff = c.targetSpeedKmh - c.speedKmh
         val rate = when {
+            diff > 0 && c.hardAccelerating -> HARD_ACCEL_KMH_PER_SEC
             diff > 0 -> ACCEL_KMH_PER_SEC
             c.hardBraking -> HARD_DECEL_KMH_PER_SEC
             else -> DECEL_KMH_PER_SEC
@@ -191,6 +202,7 @@ class FakeVehicleGateway(
         return c.copy(
             speedKmh = if (reached) c.targetSpeedKmh else speed,
             hardBraking = c.hardBraking && !reached,
+            hardAccelerating = c.hardAccelerating && !reached,
             odometerKm = c.odometerKm + km,
             fuelPercent = (c.fuelPercent - usedPercent).coerceAtLeast(0),
             brakePressed = brake,
@@ -211,6 +223,7 @@ class FakeVehicleGateway(
         const val ACCEL_KMH_PER_SEC = 9.0       // 2.5 m/s²
         const val DECEL_KMH_PER_SEC = 9.0       // 2.5 m/s² (급감속 기준 3.5 m/s² 미만)
         const val HARD_DECEL_KMH_PER_SEC = 27.0 // 7.5 m/s²
+        const val HARD_ACCEL_KMH_PER_SEC = 13.0 // 3.6 m/s²
         const val KM_PER_PERCENT = 6.0
     }
 }

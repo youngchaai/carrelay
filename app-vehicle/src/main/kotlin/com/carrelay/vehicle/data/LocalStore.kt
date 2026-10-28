@@ -7,6 +7,8 @@ import com.carrelay.core.care.CareEvent
 import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.DriverCondition
+import com.carrelay.core.model.Incident
+import com.carrelay.core.model.Inspection
 import com.carrelay.core.model.Memo
 import com.carrelay.core.model.VehicleSnapshot
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +49,12 @@ data class AppData(
     val guardianAlerts: List<GuardianAlert> = emptyList(),
     /** 시연용 빠른 판단(케어 모드 임계값을 초 단위로 줄임) */
     val demoFastThresholds: Boolean = false,
+    /** 사고·파손 기록 (처리 완료 전까지 모든 운전자에게 표시) */
+    val incidents: List<Incident> = emptyList(),
+    /** 인수 점검 결과 */
+    val inspections: List<Inspection> = emptyList(),
+    /** 이 차량의 이름 (회사 차는 '업무 1호차' 처럼) */
+    val vehicleName: String = "우리 집 그랜저",
 )
 
 class LocalStore(context: Context) {
@@ -61,13 +69,31 @@ class LocalStore(context: Context) {
     suspend fun load(): AppData = withContext(Dispatchers.IO) {
         try {
             // readFully 는 쓰기 도중 종료된 경우 백업 파일에서 복구합니다.
-            json.decodeFromString(AppData.serializer(), file.readFully().decodeToString())
+            fillSampleLicenses(json.decodeFromString(AppData.serializer(), file.readFully().decodeToString()))
         } catch (e: FileNotFoundException) {
             SeedData.initial() // 첫 실행
         } catch (e: Exception) {
             Log.e(TAG, "저장 데이터 읽기 실패, 기본값으로 시작", e)
             SeedData.initial()
         }
+    }
+
+    /**
+     * 면허 정보가 생기기 전 버전에서 저장한 시연용 파티에는 면허 값이 없습니다.
+     * 시연용 기본 프로필(같은 id)이고 면허 값이 모두 비어 있을 때만 샘플 값을 채웁니다.
+     */
+    private fun fillSampleLicenses(data: AppData): AppData {
+        val seed = SeedData.initial().drivers.associateBy { it.id }
+        return data.copy(
+            drivers = data.drivers.map { d ->
+                val s = seed[d.id]
+                if (s != null && d.licenseClass == null && d.licenseExpiryEpochDay == null && d.licensedSinceYear == null) {
+                    d.copy(licenseClass = s.licenseClass, licenseExpiryEpochDay = s.licenseExpiryEpochDay, licensedSinceYear = s.licensedSinceYear)
+                } else {
+                    d
+                }
+            },
+        )
     }
 
     /** 저장 요청이 겹쳐도 들어온 순서대로 하나씩 씁니다. */

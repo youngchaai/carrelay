@@ -126,6 +126,19 @@ class DriverSessionTracker(
         }
     }
 
+    /** 진행 중인 운전 구간에 급정거·급가속을 더합니다. */
+    fun addDrivingEvent(harshDecel: Int = 0, harshAccel: Int = 0) {
+        fun DriveSession.bump() = copy(
+            harshDecelCount = harshDecelCount + harshDecel,
+            harshAccelCount = harshAccelCount + harshAccel,
+        )
+        state = when (val s = state) {
+            is SessionState.Active -> SessionState.Active(s.session.bump())
+            is SessionState.ConfirmingChange -> SessionState.ConfirmingChange(s.session.bump())
+            is SessionState.AwaitingDriver -> s
+        }
+    }
+
     /** 앱 재시작 후 저장해 둔 진행 중 운전 구간을 되살립니다. */
     fun restore(session: DriveSession) {
         state = SessionState.Active(session)

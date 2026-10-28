@@ -7,9 +7,14 @@ import com.carrelay.core.text.KoreanText
 
 data class ShiftAdvice(
     val reason: Reason,
+    /** 음성 안내용 전체 문장 = headline + ". " + detail */
     val message: String,
     /** 교대 후보. 컨디션 정보가 없으면 null. */
     val reliefDriverId: String?,
+    /** 화면 큰 글씨: "2시간 연속 운전 중이에요" */
+    val headline: String = message,
+    /** 화면 보조 문장: "가까운 휴게소에서 쉬어 가실래요?" */
+    val detail: String = "",
 ) {
     enum class Reason { CONTINUOUS_DRIVING, NIGHT_DRIVING }
 }
@@ -63,15 +68,18 @@ class ShiftAdvisor(
 
         val relief = pickRelief(current, others)
         val reliefText = relief?.let { "${it.name}님과 교대하거나 " } ?: ""
-        val message = if (isNight) {
-            "늦은 시간에 ${KoreanText.duration(nightMillis)}째 운전 중이에요. 가까운 휴게소에서 ${reliefText}쉬어 가실래요?"
+        val headline = if (isNight) {
+            "늦은 시간에 ${KoreanText.duration(nightMillis)}째 운전 중이에요"
         } else {
-            "${KoreanText.duration(continuousMillis)} 연속 운전 중이에요. 가까운 휴게소에서 ${reliefText}쉬어 가실래요?"
+            "${KoreanText.duration(continuousMillis)} 연속 운전 중이에요"
         }
+        val detail = "가까운 휴게소에서 ${reliefText}쉬어 가실래요?"
         return ShiftAdvice(
             reason = if (isNight) ShiftAdvice.Reason.NIGHT_DRIVING else ShiftAdvice.Reason.CONTINUOUS_DRIVING,
-            message = message,
+            message = "$headline. $detail",
             reliefDriverId = relief?.id,
+            headline = headline,
+            detail = detail,
         )
     }
 

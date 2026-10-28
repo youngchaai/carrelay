@@ -1,6 +1,17 @@
 package com.carrelay.vehicle.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,37 +20,50 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.carrelay.vehicle.ui.components.Tag
+import com.carrelay.core.model.IncidentSource
+import com.carrelay.vehicle.ui.components.Avatar
+import com.carrelay.vehicle.ui.components.QuietButton
+import com.carrelay.vehicle.ui.components.StatusBadge
 import com.carrelay.vehicle.ui.screens.BriefingScreen
 import com.carrelay.vehicle.ui.screens.DriverPickerScreen
 import com.carrelay.vehicle.ui.screens.DrivingScreen
 import com.carrelay.vehicle.ui.screens.HomeScreen
 import com.carrelay.vehicle.ui.screens.MemoScreen
 import com.carrelay.vehicle.ui.screens.RecordsScreen
+import com.carrelay.vehicle.ui.screens.ReportScreen
 import com.carrelay.vehicle.ui.screens.SettingsScreen
 import com.carrelay.vehicle.ui.screens.VirtualConsolePanel
+import com.carrelay.vehicle.ui.theme.CarIcons
+import com.carrelay.vehicle.ui.theme.CarRelayTheme
+import com.carrelay.vehicle.ui.theme.Dimens
 import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun CarRelayApp(vm: CarRelayViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -55,49 +79,31 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                     onToggleConsole = { consoleOpen = !consoleOpen },
                     onNavigate = vm::navigate,
                 )
-                Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp, vertical = 12.dp)) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(start = Dimens.page, end = Dimens.page, top = 8.dp, bottom = Dimens.gap),
+                ) {
                     if (ui.loading) {
                         CircularProgressIndicator(Modifier.align(Alignment.Center))
                     } else {
-                        when (ui.screen) {
-                            Screen.PICKER -> DriverPickerScreen(ui, onSelect = vm::selectDriver, onKeepSame = vm::keepSameDriver)
-                            Screen.BRIEFING -> BriefingScreen(
-                                ui = ui,
-                                onAcknowledge = vm::acknowledgeBriefing,
-                                onResolve = vm::resolveMemo,
-                                onReplay = vm::replayBriefing,
-                            )
-                            Screen.HOME -> HomeScreen(
-                                ui = ui,
-                                onLeaveMemo = { vm.navigate(Screen.MEMO) },
-                                onChangeDriver = { vm.navigate(Screen.PICKER) },
-                                onReplayBriefing = vm::replayBriefing,
-                                onHandOver = vm::handOver,
-                            )
-                            Screen.MEMO -> MemoScreen(
-                                ui = ui,
-                                onPreset = vm::addMemo,
-                                onDone = { vm.navigate(Screen.HOME) },
-                                onHandOver = vm::handOver,
-                            )
-                            Screen.DRIVING -> DrivingScreen(
-                                ui = ui,
-                                onAnswerCare = vm::answerCareCheckIn,
-                                onAcceptShift = vm::acceptShift,
-                                onDeclineShift = vm::declineShift,
-                            )
-                            Screen.RECORDS -> RecordsScreen(ui)
-                            Screen.SETTINGS -> SettingsScreen(
-                                ui = ui,
-                                onCareMode = vm::setCareMode,
-                                onDemoFast = vm::setDemoFast,
-                                onVoice = vm::setVoiceEnabled,
-                                onReset = vm::resetAllData,
-                            )
+                        // 화면이 바뀔 때만 부드럽게 겹쳐 바꿉니다. 나가는 화면은 바뀌기 직전 상태로 그립니다.
+                        AnimatedContent(
+                            targetState = ui.screen,
+                            transitionSpec = { fadeIn(tween(260, delayMillis = 60)) togetherWith fadeOut(tween(180)) },
+                            label = "screen",
+                            modifier = Modifier.fillMaxSize(),
+                        ) { screen ->
+                            val settling = transition.currentState != EnterExitState.Visible ||
+                                transition.targetState != EnterExitState.Visible
+                            Box(Modifier.fillMaxSize().blockTouches(settling)) {
+                                ScreenContent(latestWhile(ui.screen == screen, ui), vm)
+                            }
                         }
                     }
+                    ToastBar(message = ui.toast, onDismiss = vm::clearToast, modifier = Modifier.align(Alignment.BottomCenter))
                 }
-                ToastBar(message = ui.toast, onDismiss = vm::clearToast)
             }
 
             val fake = vm.simulatedCar
@@ -113,6 +119,57 @@ fun CarRelayApp(vm: CarRelayViewModel) {
 }
 
 @Composable
+private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
+    when (ui.screen) {
+        Screen.PICKER -> DriverPickerScreen(ui, onSelect = vm::selectDriver, onKeepSame = vm::keepSameDriver)
+        Screen.BRIEFING -> BriefingScreen(
+            ui = ui,
+            onAcknowledge = vm::acknowledgeBriefing,
+            onResolve = vm::resolveMemo,
+            onReplay = vm::replayBriefing,
+            onReportIssue = { vm.startReport(IncidentSource.AT_PICKUP) },
+            onUpdateIncident = vm::updateIncidentStatus,
+        )
+        Screen.HOME -> HomeScreen(
+            ui = ui,
+            onLeaveMemo = { vm.navigate(Screen.MEMO) },
+            onChangeDriver = { vm.navigate(Screen.PICKER) },
+            onReplayBriefing = vm::replayBriefing,
+            onHandOver = vm::handOver,
+            onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
+            onUpdateIncident = vm::updateIncidentStatus,
+        )
+        Screen.MEMO -> MemoScreen(
+            ui = ui,
+            onPreset = vm::addMemo,
+            onDone = { vm.navigate(Screen.HOME) },
+            onHandOver = vm::handOver,
+            onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
+            onAfterDriveOk = vm::markAfterDriveOk,
+        )
+        Screen.REPORT -> ReportScreen(
+            ui = ui,
+            onSubmit = vm::submitIncident,
+            onCancel = vm::cancelReport,
+        )
+        Screen.DRIVING -> DrivingScreen(
+            ui = ui,
+            onAnswerCare = vm::answerCareCheckIn,
+            onAcceptShift = vm::acceptShift,
+            onDeclineShift = vm::declineShift,
+        )
+        Screen.RECORDS -> RecordsScreen(ui, onUpdateIncident = vm::updateIncidentStatus)
+        Screen.SETTINGS -> SettingsScreen(
+            ui = ui,
+            onCareMode = vm::setCareMode,
+            onDemoFast = vm::setDemoFast,
+            onVoice = vm::setVoiceEnabled,
+            onReset = vm::resetAllData,
+        )
+    }
+}
+
+@Composable
 private fun TopBar(
     ui: UiState,
     consoleAvailable: Boolean,
@@ -121,45 +178,87 @@ private fun TopBar(
     onNavigate: (Screen) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().heightIn(min = 104.dp).padding(horizontal = Dimens.page, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text("카릴레이", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(CarIcons.Handover, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+            Text("카릴레이", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        }
         ui.currentDriver?.let { d ->
-            Tag(if (ui.sessionConfirmed) "운전자: ${d.name}" else "운전자: ${d.name} (미확인)")
-            if (d.careModeEnabled) {
-                Tag("케어 모드", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(36.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(start = 8.dp, end = 20.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Avatar(d.name, ui.avatarTone(d.id), size = 52.dp)
+                Text(d.name, style = MaterialTheme.typography.titleMedium)
+                if (!ui.sessionConfirmed) StatusBadge("미확인", CarRelayTheme.status.warning)
             }
+            if (d.careModeEnabled) StatusBadge("케어 모드", CarRelayTheme.status.memo, icon = CarIcons.Shield)
         }
         Spacer(Modifier.weight(1f))
-        Tag(if (ui.isSimulated) "데이터: 가상 차량" else "데이터: ${ui.sourceName}")
         if (!ui.drivingUi) {
-            TextButton(onClick = { onNavigate(Screen.HOME) }) { Text("홈") }
-            TextButton(onClick = { onNavigate(Screen.RECORDS) }) { Text("기록") }
-            TextButton(onClick = { onNavigate(Screen.SETTINGS) }) { Text("설정") }
+            NavItem("홈", CarIcons.Home, selected = ui.screen == Screen.HOME) { onNavigate(Screen.HOME) }
+            NavItem("기록", CarIcons.Records, selected = ui.screen == Screen.RECORDS) { onNavigate(Screen.RECORDS) }
+            NavItem("설정", CarIcons.Settings, selected = ui.screen == Screen.SETTINGS) { onNavigate(Screen.SETTINGS) }
         }
         if (consoleAvailable) {
-            TextButton(onClick = onToggleConsole) { Text(if (consoleOpen) "가상 차량 닫기" else "가상 차량") }
+            QuietButton(if (consoleOpen) "콘솔 닫기" else "가상 차량", onToggleConsole, icon = CarIcons.Car)
         }
     }
 }
 
 @Composable
-private fun ToastBar(message: String?, onDismiss: () -> Unit) {
-    if (message == null) return
-    LaunchedEffect(message) {
-        delay(3_500)
-        onDismiss()
+private fun NavItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+    val content = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        Modifier
+            .heightIn(min = 88.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background)
+            .clickable(role = Role.Tab, onClick = onClick)
+            .padding(horizontal = 22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(32.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = content)
     }
-    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-        Text(
-            message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp))
-                .padding(horizontal = 24.dp, vertical = 12.dp),
-        )
+}
+
+@Composable
+private fun ToastBar(message: String?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    // 사라지는 동안에도 글자가 남아 있도록 마지막 메시지를 기억합니다.
+    var shown by remember { mutableStateOf("") }
+    LaunchedEffect(message) {
+        if (message != null) {
+            shown = message
+            delay(3_500)
+            onDismiss()
+        }
+    }
+    AnimatedVisibility(
+        visible = message != null,
+        enter = fadeIn(tween(200)) + slideInVertically(tween(260)) { it / 2 },
+        exit = fadeOut(tween(220)) + slideOutVertically(tween(220)) { it / 2 },
+        modifier = modifier,
+    ) {
+        Row(
+            Modifier
+                .padding(bottom = 8.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.inverseSurface)
+                .padding(horizontal = 32.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(CarIcons.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.size(32.dp))
+            Text(message ?: shown, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.inverseOnSurface)
+        }
     }
 }
