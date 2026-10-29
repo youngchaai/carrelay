@@ -45,6 +45,7 @@ import com.carrelay.vehicle.ui.theme.StatusTone
 fun MemoScreen(
     ui: UiState,
     onPreset: (MemoPreset) -> Unit,
+    onVoice: () -> Unit,
     onDone: () -> Unit,
     onHandOver: () -> Unit,
     onReport: () -> Unit,
@@ -65,8 +66,11 @@ fun MemoScreen(
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
         ScreenHeader(
             title = if (ui.parkedPrompt) "주차하셨네요. 남길 말이 있나요?" else "다음 운전자에게 남길 말",
-            subtitle = "누르면 바로 저장돼요",
-        )
+            subtitle = "누르면 바로 저장돼요. 말로 해도 돼요: \"다음 사람한테 주유하라고 전해 줘\"",
+        ) {
+            // 말로 남기기: 키보드 없이 하고 싶은 말을 그대로 (Pleos 음성 인식)
+            PrimaryButton("말로 남기기", onVoice, icon = CarIcons.Mic, height = 104.dp)
+        }
         AnimatedVisibility(askCheck, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             SurfaceCard(Modifier.fillMaxWidth(), container = warning.container, border = null, contentPadding = 24.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -91,6 +95,7 @@ fun MemoScreen(
             verticalArrangement = Arrangement.spacedBy(Dimens.gapS),
             modifier = Modifier.weight(1f),
         ) {
+
             items(presets) { preset ->
                 val left = preset in alreadyLeft
                 Tile(

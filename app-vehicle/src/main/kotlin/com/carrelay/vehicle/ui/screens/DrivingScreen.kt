@@ -60,6 +60,7 @@ fun DrivingScreen(
     onAnswerCare: () -> Unit,
     onAcceptShift: () -> Unit,
     onDeclineShift: () -> Unit,
+    onVoiceMemo: () -> Unit,
 ) {
     // 기본 → 휴식 권유 → 안부 확인이 바뀔 때 살짝 겹쳐 바꿉니다(주행 중이라 짧게).
     val mode = when {
@@ -87,14 +88,14 @@ fun DrivingScreen(
             when {
                 checkIn != null -> CareCheckIn(s, checkIn, onAnswerCare)
                 advice != null -> ShiftAdviceView(s, advice, onAcceptShift, onDeclineShift)
-                else -> DrivingStatus(s)
+                else -> DrivingStatus(s, onVoiceMemo)
             }
         }
     }
 }
 
 @Composable
-private fun DrivingStatus(ui: UiState) {
+private fun DrivingStatus(ui: UiState, onVoiceMemo: () -> Unit) {
     val driver = ui.currentDriver
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         if (driver != null) Avatar(driver.name, ui.avatarTone(driver.id), size = 96.dp)
@@ -160,6 +161,11 @@ private fun DrivingStatus(ui: UiState) {
             energyCard(Modifier.weight(1f))
         }
     }
+    // 주행 중에도 손을 쓰지 않고 다음 운전자에게 말을 남깁니다(큰 버튼 하나).
+    SecondaryButton(
+        "말로 메모 남기기", onVoiceMemo, Modifier.widthIn(min = 720.dp),
+        icon = CarIcons.Mic, height = Dimens.drivingButton, textStyle = MaterialTheme.typography.headlineSmall,
+    )
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(CarIcons.Speaker, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
         Text("주행 중에는 화면 대신 음성으로 안내해요", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

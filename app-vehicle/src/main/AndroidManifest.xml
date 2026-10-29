@@ -19,6 +19,12 @@
     <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
     <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- 휴게소 경유지 추가(NaviHelper)와 보호자 알림 위치(FusedLocation) -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
+    <!-- 말로 남기는 메모 (SpeechToText, 차량 내장 인식 엔진) -->
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
 
     <application
         android:name=".CarRelayApplication"

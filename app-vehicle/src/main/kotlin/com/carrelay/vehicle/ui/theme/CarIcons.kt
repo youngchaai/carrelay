@@ -58,6 +58,11 @@ object CarIcons {
     val Gauge by lazy { stroke("Gauge", "M4 17a8 8 0 1 1 16 0", "M12 17l4-5") }
     val Bell by lazy { stroke("Bell", "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z", "M10 20.5a2 2 0 0 0 4 0") }
     val Close by lazy { stroke("Close", "M6 6l12 12", "M18 6L6 18") }
+    val Mic by lazy {
+        stroke("Mic", "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z", "M5 11a7 7 0 0 0 14 0", "M12 18v3", "M9 21h6")
+    }
+    /** 큰 글씨: 작은 가 + 큰 가 */
+    val TextSize by lazy { stroke("TextSize", "M3 19l3.5-9 3.5 9", "M4.3 16h4.4", "M11 19l5-13 5 13", "M12.9 14.5h6.2") }
     val Car by lazy {
         stroke("Car", "M5 15l1.6-5.2A2 2 0 0 1 8.5 8.4h7a2 2 0 0 1 1.9 1.4L19 15", "M3 15h18v4H3z", "M7 19v1.5", "M17 19v1.5")
     }

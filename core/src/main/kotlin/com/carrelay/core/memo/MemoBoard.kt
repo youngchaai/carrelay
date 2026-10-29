@@ -16,6 +16,8 @@ object MemoBoard {
         nowMillis: Long,
         preset: MemoPreset? = null,
         text: String? = null,
+        toDriverId: String? = null,
+        spoken: Boolean = false,
     ): List<Memo> {
         val body: String = text?.trim()?.takeIf { it.isNotEmpty() }
             ?: preset?.text
@@ -26,6 +28,9 @@ object MemoBoard {
             text = body,
             createdAtMillis = nowMillis,
             preset = preset,
+            // 자기 자신에게 남긴 말은 받는 사람 없이(모두에게) 둡니다.
+            toDriverId = toDriverId?.takeIf { it != authorId },
+            spoken = spoken,
         )
     }
 

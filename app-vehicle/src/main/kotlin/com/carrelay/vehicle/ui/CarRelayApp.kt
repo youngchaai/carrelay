@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +52,7 @@ import com.carrelay.core.model.IncidentSource
 import com.carrelay.vehicle.ui.components.Avatar
 import com.carrelay.vehicle.ui.components.QuietButton
 import com.carrelay.vehicle.ui.components.StatusBadge
+import com.carrelay.vehicle.ui.components.VoiceMemoOverlay
 import com.carrelay.vehicle.ui.screens.BriefingScreen
 import com.carrelay.vehicle.ui.screens.DriverPickerScreen
 import com.carrelay.vehicle.ui.screens.DrivingScreen
@@ -69,9 +73,17 @@ fun CarRelayApp(vm: CarRelayViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var consoleOpen by rememberSaveable { mutableStateOf(vm.simulatedCar != null) }
 
+    // 큰 글씨 모드인 사람이 운전하면 앱 화면 전체(글씨·버튼·간격)를 같은 비율로 키웁니다.
+    // 비율을 함께 키워야 글씨만 커져 버튼 밖으로 넘치는 일이 없습니다. (가상 차량 콘솔은 그대로)
+    val base = LocalDensity.current
+    val largeText = ui.currentDriver?.largeText == true
+    val appDensity = if (largeText) Density(base.density * LARGE_TEXT_SCALE, base.fontScale) else base
+
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Row(Modifier.fillMaxSize().safeDrawingPadding()) {
-            Column(Modifier.weight(1f).fillMaxHeight()) {
+            CompositionLocalProvider(LocalDensity provides appDensity) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+            Column(Modifier.fillMaxSize()) {
                 TopBar(
                     ui = ui,
                     consoleAvailable = vm.simulatedCar != null,
@@ -105,6 +117,20 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                     ToastBar(message = ui.toast, onDismiss = vm::clearToast, modifier = Modifier.align(Alignment.BottomCenter))
                 }
             }
+            // 말로 남기는 메모는 위쪽 메뉴까지 덮어, 듣는 동안 다른 화면으로 넘어가지 않게 합니다.
+            ui.voiceMemo?.let { voice ->
+                VoiceMemoOverlay(
+                    ui = ui,
+                    voice = voice,
+                    onStop = vm::cancelVoiceMemo,
+                    onRetry = vm::startVoiceMemo,
+                    onSave = vm::saveVoiceMemo,
+                    onPickExample = vm::pickVoiceExample,
+                    onClose = vm::cancelVoiceMemo,
+                )
+            }
+            }
+            }
 
             val fake = vm.simulatedCar
             if (consoleOpen && fake != null) {
@@ -117,6 +143,9 @@ fun CarRelayApp(vm: CarRelayViewModel) {
         }
     }
 }
+
+/** 큰 글씨 모드 비율 (본문 28sp → 약 34sp, 버튼 104dp → 약 125dp) */
+private const val LARGE_TEXT_SCALE = 1.2f
 
 @Composable
 private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
@@ -144,6 +173,7 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
         Screen.MEMO -> MemoScreen(
             ui = ui,
             onPreset = vm::addMemo,
+            onVoice = vm::startVoiceMemo,
             onDone = { vm.navigate(Screen.HOME) },
             onHandOver = vm::handOver,
             onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
@@ -159,11 +189,13 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onAnswerCare = vm::answerCareCheckIn,
             onAcceptShift = vm::acceptShift,
             onDeclineShift = vm::declineShift,
+            onVoiceMemo = vm::startVoiceMemo,
         )
         Screen.RECORDS -> RecordsScreen(ui, onUpdateIncident = vm::updateIncidentStatus)
         Screen.SETTINGS -> SettingsScreen(
             ui = ui,
             onCareMode = vm::setCareMode,
+            onLargeText = vm::setLargeText,
             onDemoFast = vm::setDemoFast,
             onVoice = vm::setVoiceEnabled,
             onReset = vm::resetAllData,

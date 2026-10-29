@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +54,7 @@ import com.carrelay.vehicle.ui.theme.Dimens
 fun SettingsScreen(
     ui: UiState,
     onCareMode: (driverId: String, enabled: Boolean) -> Unit,
+    onLargeText: (driverId: String, enabled: Boolean) -> Unit,
     onDemoFast: (Boolean) -> Unit,
     onVoice: (Boolean) -> Unit,
     onReset: () -> Unit,
@@ -73,7 +76,7 @@ fun SettingsScreen(
             // 두 명씩 두 줄: 한 칸이 넓어야 글자가 중간에서 끊기지 않습니다.
             ui.drivers.chunked(2).forEach { pair ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gapS)) {
-                    pair.forEach { d -> ProfileCard(d, ui, Modifier.weight(1f)) }
+                    pair.forEach { d -> ProfileCard(d, ui, Modifier.weight(1f), onLargeText = { on -> onLargeText(d.id, on) }) }
                     if (pair.size == 1) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 }
             }
@@ -184,7 +187,7 @@ fun SettingsScreen(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier) {
+private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText: (Boolean) -> Unit) {
     val s = CarRelayTheme.status
     val license = ui.licenses[d.id]
     val stats = IncidentLog.statsFor(ui.incidents, d.id)
@@ -218,6 +221,32 @@ private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier) {
             style = MaterialTheme.typography.bodyLarge,
             color = if (stats.open > 0) s.danger.content else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // 큰 글씨: 필요한 사람이 고르면 그 사람이 운전할 때만 차 화면이 커집니다.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 88.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .toggleable(value = d.largeText, role = Role.Switch, onValueChange = onLargeText)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            androidx.compose.material3.Icon(
+                CarIcons.TextSize, contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp),
+            )
+            Column(Modifier.weight(1f)) {
+                Text("큰 글씨", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (d.largeText) "${d.name}님이 운전할 때 크게 보여요" else "꺼짐",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = d.largeText, onCheckedChange = null, modifier = Modifier.scale(1.25f).padding(horizontal = 8.dp))
+        }
     }
 }
 

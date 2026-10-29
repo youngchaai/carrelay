@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>카릴레이 가족 폰 앱 목업</title>
+<style>
+@font-face { font-family: "Pretendard"; font-weight: 400; src: url("../../../app-vehicle/src/main/res/font/pretendard_regular.otf") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 600; src: url("../../../app-vehicle/src/main/res/font/pretendard_semibold.otf") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 700; src: url("../../../app-vehicle/src/main/res/font/pretendard_bold.otf") format("opentype"); }
+
+:root {
+  --primary: #006B60; --pc: #D7F2EB; --opc: #004D44;
+  --bg: #F5F7F8; --surface: #FFFFFF; --on: #17262C; --onv: #465B64;
+  --outline: #D3DDE0; --sc: #EEF2F3; --line: #E3EAEC;
+  --warn: #704900; --warn-c: #FFF0CC;
+  --memo: #503C91; --memo-c: #EEE7FF;
+  --ok: #17613D; --ok-c: #DFF3E7;
+  --info: #205D85; --info-c: #E0F0FC;
+  --danger: #A12328; --danger-c: #FDE7E7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1500px; height: 1000px; overflow: hidden; }
+body {
+  font-family: "Pretendard", sans-serif; color: var(--on);
+  background: radial-gradient(1200px 700px at 50% 0%, #F3F7F7 0%, #E6EDEE 70%);
+  -webkit-font-smoothing: antialiased; word-break: keep-all; letter-spacing: -0.01em;
+}
+.ic { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ic.s { width: 18px; height: 18px; }
+.ic.l { width: 26px; height: 26px; }
+
+/* ---------- canvas header ---------- */
+.head { height: 108px; padding: 30px 56px 0; display: flex; align-items: flex-start; justify-content: space-between; }
+.head-l { display: flex; align-items: center; gap: 16px; }
+.logo { width: 52px; height: 52px; border-radius: 16px; background: var(--primary); color: #fff; display: grid; place-items: center; }
+.logo .ic { width: 28px; height: 28px; stroke-width: 2.2; }
+.head h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.head p { font-size: 17px; color: var(--onv); margin-top: 3px; }
+.mock {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-radius: 16px;
+  background: var(--surface); border: 2px dashed #8A9AA1; color: var(--on);
+}
+.mock b { font-size: 17px; font-weight: 700; }
+.mock span { font-size: 15px; color: var(--onv); padding-left: 10px; border-left: 1px solid var(--outline); }
+
+/* ---------- phones row ---------- */
+.row { zoom: 0.93; display: flex; justify-content: center; gap: 76px; margin-top: 6px; }
+.col { display: flex; flex-direction: column; align-items: center; }
+.phone {
+  position: relative; width: 410px; height: 864px; padding: 10px; border-radius: 58px;
+  background: #1C2529;
+  box-shadow: inset 0 0 0 1.5px #3B474D, 0 40px 70px -30px rgba(23, 38, 44, 0.45), 0 8px 18px -8px rgba(23, 38, 44, 0.25);
+}
+.phone::before { content: ""; position: absolute; right: -3px; top: 190px; width: 3px; height: 74px; border-radius: 0 2px 2px 0; background: #2C383E; }
+.phone::after { content: ""; position: absolute; right: -3px; top: 290px; width: 3px; height: 46px; border-radius: 0 2px 2px 0; background: #2C383E; }
+.screen { position: relative; width: 390px; height: 844px; border-radius: 48px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+.statusbar { position: relative; height: 42px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 4px 28px 0 32px; font-size: 15px; font-weight: 600; }
+.cam { position: absolute; left: 50%; top: 14px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #0E1417; }
+.sb { display: flex; align-items: center; gap: 6px; }
+.sb svg { fill: currentColor; }
+.gesture { position: absolute; bottom: 9px; left: 50%; width: 124px; height: 5px; margin-left: -62px; border-radius: 3px; background: #17262C; opacity: 0.5; }
+
+.appbar { height: 56px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+.brand { display: flex; align-items: center; gap: 6px; font-size: 21px; font-weight: 700; color: var(--primary); letter-spacing: -0.02em; }
+.brand .ic { stroke-width: 2.4; }
+.who { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 4px; border-radius: 20px; background: var(--sc); font-size: 17px; font-weight: 600; }
+
+.content { flex: 1; padding: 0 20px; display: flex; flex-direction: column; }
+
+/* avatars */
+.av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 18px; flex: none; }
+.av.sm { width: 32px; height: 32px; font-size: 14px; }
+.av.xs { width: 30px; height: 30px; font-size: 13px; }
+.av.lg { width: 64px; height: 64px; font-size: 26px; }
+.a1 { color: #004D44; background: #D7F2EB; }
+.a2 { color: #1F4E79; background: #DCEBFA; }
+.a3 { color: #7A2944; background: #F9E1E6; }
+.a4 { color: #5B4421; background: #F3E8D6; }
+
+/* chips */
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px 0 11px; border-radius: 11px; font-size: 16px; font-weight: 600; white-space: nowrap; }
+.chip.sm { height: 28px; font-size: 14px; padding: 0 10px 0 8px; border-radius: 9px; gap: 4px; }
+.chip.neutral { background: var(--sc); color: var(--onv); }
+.chip.warn { background: var(--warn-c); color: var(--warn); }
+.chip.memo { background: var(--memo-c); color: var(--memo); }
+.chip.ok { background: var(--ok-c); color: var(--ok); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; }
+
+/* bottom nav */
+.nav { flex: none; height: 92px; background: var(--surface); border-top: 1px solid var(--line); display: flex; justify-content: space-around; padding: 10px 14px 0; }
+.nav a { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 76px; font-size: 14px; font-weight: 600; color: var(--onv); text-decoration: none; }
+.nav .pill { width: 62px; height: 34px; border-radius: 17px; display: grid; place-items: center; }
+.nav a.on { color: var(--opc); }
+.nav a.on .pill { background: var(--pc); }
+
+/* ---------- screen 1: home ---------- */
+.title-row { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 12px; }
+.title-row h2 { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
+.party { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--onv); font-weight: 600; }
+.stack { display: flex; }
+.stack .av { box-shadow: 0 0 0 2.5px var(--bg); }
+.stack .av + .av { margin-left: -8px; }
+
+.carcard { display: grid; grid-template-columns: 86px 1fr; column-gap: 18px; padding: 18px 20px 0; }
+.carcard svg.car { width: 86px; height: 138px; }
+.carinfo { display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.stats { display: flex; gap: 22px; }
+.lbl { font-size: 15px; color: var(--onv); }
+.big { font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
+.big small { font-size: 19px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+.lastdrive { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 0 14px; border-top: 1px solid var(--line); font-size: 16px; color: var(--onv); }
+.lastdrive b { color: var(--on); font-weight: 700; }
+
+.sec-head { display: flex; align-items: center; gap: 8px; margin: 18px 2px 10px; }
+.sec-head h3 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.sec-head .n { font-size: 16px; font-weight: 700; color: var(--onv); }
+
+.item { display: grid; grid-template-columns: 44px 1fr 18px; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; border-radius: 20px; }
+.item + .item { margin-top: 10px; }
+.item-ic { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
+.item.warn { background: var(--warn-c); color: var(--warn); }
+.item.warn .item-ic { background: rgba(112, 73, 0, 0.1); }
+.item.memo { background: var(--surface); border: 1px solid var(--line); }
+.item.memo .item-ic { background: var(--memo-c); color: var(--memo); }
+.item-title { font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: -0.02em; }
+.item-sub { font-size: 15px; margin-top: 3px; }
+.item-kicker { font-size: 15px; font-weight: 600; color: var(--memo); margin-bottom: 3px; }
+.item .chev { width: 18px; height: 18px; opacity: 0.7; }
+
+.rec { margin-top: 16px; background: var(--pc); border: none; color: var(--opc); padding: 16px 18px 15px; border-radius: 24px; }
+.rec-top { display: flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 600; }
+.rec-main { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.rec-main .av { box-shadow: 0 0 0 3px #fff; }
+.rec-name { font-size: 21px; font-weight: 700; color: var(--on); letter-spacing: -0.02em; }
+.rec-name span { font-size: 16px; color: var(--onv); font-weight: 600; }
+.rec-why { font-size: 16px; margin-top: 1px; color: var(--opc); font-weight: 600; }
+.rec-note { margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(0, 77, 68, 0.15); font-size: 14px; color: var(--opc); display: flex; align-items: center; gap: 6px; }
+
+/* ---------- screen 2: guardian ---------- */
+.push {
+  position: absolute; z-index: 3; left: -20px; right: -20px; top: 60px;
+  background: rgba(255, 255, 255, 0.98); border-radius: 26px; padding: 15px 20px 17px;
+  border: 1px solid var(--line);
+  box-shadow: 0 22px 44px -14px rgba(23, 38, 44, 0.42), 0 3px 8px rgba(23, 38, 44, 0.08);
+}
+.push-head { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--onv); font-weight: 600; }
+.push-head .appic { width: 24px; height: 24px; border-radius: 7px; background: var(--primary); color: #fff; display: grid; place-items: center; }
+.push-head .appic .ic { width: 15px; height: 15px; stroke-width: 2.6; }
+.push-title { font-size: 18px; font-weight: 700; margin-top: 8px; letter-spacing: -0.02em; }
+.push-body { font-size: 16px; margin-top: 3px; line-height: 1.4; }
+.push-tag { position: absolute; top: -13px; left: 22px; height: 26px; padding: 0 10px; border-radius: 13px; background: var(--on); color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center; }
+
+.s2 .content { padding-top: 172px; }
+.hero { display: flex; align-items: center; gap: 14px; }
+.hero-ic { width: 54px; height: 54px; border-radius: 50%; background: var(--danger-c); color: var(--danger); display: grid; place-items: center; }
+.hero-time { font-size: 15px; color: var(--onv); margin-top: 5px; padding-left: 2px; }
+.hero-title { font-size: 25px; font-weight: 700; line-height: 1.36; letter-spacing: -0.03em; margin: 18px 0 22px; }
+
+.tlcard { padding: 16px 18px 16px; }
+.tlcard h4 { font-size: 16px; font-weight: 600; color: var(--onv); margin-bottom: 4px; }
+.tl { list-style: none; position: relative; }
+.tl::before { content: ""; position: absolute; left: 62px; top: 20px; bottom: 34px; width: 2px; background: var(--outline); }
+.tl li { display: grid; grid-template-columns: 50px 26px 1fr; align-items: start; padding: 11px 0; }
+.tl .t { font-size: 16px; font-weight: 600; color: var(--onv); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.tl .d { position: relative; width: 12px; height: 12px; border-radius: 50%; margin: 6px 0 0 7px; box-shadow: 0 0 0 4px var(--surface); }
+.tl .x { font-size: 17px; line-height: 1.4; font-weight: 600; }
+.tl .x small { display: block; font-size: 15px; font-weight: 400; color: var(--onv); margin-top: 2px; }
+.loc { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 12px 14px; border-radius: 16px; background: var(--sc); font-size: 17px; font-weight: 600; }
+.loc .ic { color: var(--primary); }
+.loc span { margin-left: auto; font-size: 14px; font-weight: 400; color: var(--onv); }
+
+.btns { display: grid; grid-template-columns: 1fr 1.25fr; gap: 10px; margin-top: 24px; }
+.btn { height: 60px; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.btn.sec { border: 1.5px solid #8A9AA1; color: var(--opc); background: var(--surface); }
+.btn.pri { background: var(--primary); color: #fff; }
+.note { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; font-size: 15px; color: var(--onv); }
+
+/* ---------- screen 3: profile ---------- */
+.profile { padding: 16px 20px 15px; margin-top: 2px; }
+.p-top { display: flex; align-items: center; gap: 14px; }
+.pname { font-size: 25px; font-weight: 700; letter-spacing: -0.03em; }
+.psub { font-size: 16px; color: var(--onv); margin-top: 2px; }
+.p-lic { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.p-lic span { font-size: 15px; color: var(--warn); font-weight: 600; }
+.pnote { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 14px; color: var(--onv); }
+
+.settings { margin-top: 10px; padding: 2px 20px; }
+.set { display: grid; grid-template-columns: 40px 1fr auto; column-gap: 12px; row-gap: 4px; align-items: center; padding: 12px 0; }
+.set + .set { border-top: 1px solid var(--line); }
+.set-ic { width: 40px; height: 40px; border-radius: 50%; background: var(--sc); color: var(--opc); display: grid; place-items: center; }
+.set-title { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+.set-desc { grid-column: 2 / -1; font-size: 15px; color: var(--onv); line-height: 1.45; text-wrap: balance; }
+.set-desc b { color: var(--on); }
+.sw { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--primary); }
+.toggle { position: relative; width: 52px; height: 32px; border-radius: 16px; background: var(--primary); }
+.toggle::after { content: ""; position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; }
+.guard { display: inline-flex; align-items: center; gap: 6px; }
+.guard-row { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
+
+.voice { margin-top: 10px; padding: 14px 20px 16px; }
+.voice-head { display: flex; align-items: center; gap: 12px; }
+.voice-head .set-ic { background: var(--memo-c); color: var(--memo); }
+.bubble { position: relative; margin-top: 10px; padding: 10px 16px 11px; border-radius: 18px 18px 18px 6px; background: var(--sc); font-size: 17px; font-weight: 600; line-height: 1.4; }
+.bubble small { display: block; font-size: 13px; font-weight: 600; color: var(--onv); margin-bottom: 2px; }
+.conv { display: flex; align-items: center; gap: 6px; margin: 6px 0 6px 6px; font-size: 14px; color: var(--onv); font-weight: 600; }
+.memo-line { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: var(--memo-c); color: var(--memo); font-size: 17px; }
+.memo-line b { font-weight: 700; }
+.memo-line em { font-style: normal; font-weight: 700; color: var(--on); }
+
+/* ---------- captions ---------- */
+.cap { margin-top: 20px; display: flex; align-items: flex-start; gap: 12px; width: 410px; }
+.cap .num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 16px; font-weight: 700; flex: none; margin-top: 1px; }
+.cap b { display: block; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+.cap span { display: block; font-size: 17px; color: var(--onv); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- 아이콘 · 차 그림 (차량 앱 CarTopView 를 그대로 옮김) -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+  <defs>
+    <linearGradient id="carBodyGrad" gradientUnits="userSpaceOnUse" x1="12" y1="0" x2="88" y2="0">
+      <stop offset="0" stop-color="#B7C2C8"/><stop offset=".25" stop-color="#DCE3E6"/><stop offset=".5" stop-color="#F7F9FA"/><stop offset=".75" stop-color="#DCE3E6"/><stop offset="1" stop-color="#B7C2C8"/>
+    </linearGradient>
+    <linearGradient id="carGlassGrad" gradientUnits="userSpaceOnUse" x1="0" y1="38.4" x2="0" y2="128">
+      <stop offset="0" stop-color="#3A4A54"/><stop offset="1" stop-color="#1C272E"/>
+    </linearGradient>
+    <path id="carBodyPath" d="M50 4C30 4 17 5.6 15 16C13.5 28.8 13 48 13.5 64C14 76.8 14 89.6 13.5 105.6C13 128 14 148.8 20 154.4C30 156.48 70 156.48 80 154.4C86 148.8 87 128 86.5 105.6C86 89.6 86 76.8 86.5 64C87 48 86.5 28.8 85 16C83 5.6 70 4 50 4Z"/>
+  </defs>
+  <symbol id="car" viewBox="0 0 100 160">
+    <use href="#carBodyPath" transform="translate(.6 .96)" fill="#000" opacity=".12"/>
+    <use href="#carBodyPath" transform="translate(.6 2.24)" fill="#000" opacity=".072"/>
+    <use href="#carBodyPath" transform="translate(.6 3.52)" fill="#000" opacity=".036"/>
+    <g fill="#2A3136"><rect x="7.5" y="25.6" width="13" height="24" rx="5"/><rect x="79.5" y="25.6" width="13" height="24" rx="5"/><rect x="7.5" y="112" width="13" height="24" rx="5"/><rect x="79.5" y="112" width="13" height="24" rx="5"/></g>
+    <g fill="#B7C2C8"><rect x="5.5" y="48" width="11" height="5.6" rx="2.8"/><rect x="83.5" y="48" width="11" height="5.6" rx="2.8"/></g>
+    <use href="#carBodyPath" fill="url(#carBodyGrad)" stroke="#8E9BA2" stroke-width="1.2"/>
+    <g stroke="#8E9BA2" stroke-opacity=".2" stroke-width=".8"><line x1="33" y1="12" x2="30" y2="37.6"/><line x1="67" y1="12" x2="70" y2="37.6"/></g>
+    <g fill="url(#carGlassGrad)"><path d="M20 42.4H80L74.5 55.2H25.5Z"/><rect x="25.5" y="56.8" width="49" height="52.8" rx="6"/><path d="M27 111.2H73L70 124H30Z"/></g>
+    <g fill="#1C272E" fill-opacity=".55"><rect x="19" y="57.6" width="4.5" height="49.6" rx="2"/><rect x="76.5" y="57.6" width="4.5" height="49.6" rx="2"/></g>
+    <line x1="30" y1="53.6" x2="40" y2="44" stroke="#fff" stroke-opacity=".28" stroke-width="1.4"/>
+    <g fill="#26323A"><rect x="21" y="6.4" width="58" height="5.12" rx="2"/><rect x="21" y="148.48" width="58" height="5.12" rx="2"/></g>
+    <g fill="#DDF3FF"><rect x="23.5" y="7.68" width="2.6" height="2.6"/><rect x="27.3" y="7.68" width="2.6" height="2.6"/><rect x="31.1" y="7.68" width="2.6" height="2.6"/><rect x="34.9" y="7.68" width="2.6" height="2.6"/><rect x="62.5" y="7.68" width="2.6" height="2.6"/><rect x="66.3" y="7.68" width="2.6" height="2.6"/><rect x="70.1" y="7.68" width="2.6" height="2.6"/><rect x="73.9" y="7.68" width="2.6" height="2.6"/></g>
+    <g fill="#FF4D52"><rect x="23.5" y="149.6" width="2.6" height="2.6"/><rect x="27.3" y="149.6" width="2.6" height="2.6"/><rect x="31.1" y="149.6" width="2.6" height="2.6"/><rect x="34.9" y="149.6" width="2.6" height="2.6"/><rect x="62.5" y="149.6" width="2.6" height="2.6"/><rect x="66.3" y="149.6" width="2.6" height="2.6"/><rect x="70.1" y="149.6" width="2.6" height="2.6"/><rect x="73.9" y="149.6" width="2.6" height="2.6"/></g>
+  </symbol>
+
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h15l-4-4M20 16H5l4 4"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/></symbol>
+  <symbol id="i-memo" viewBox="0 0 24 24"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9.5 13h5M9.5 16.5h4"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 12.5l1.7-4.6A2 2 0 0 1 8.6 6.5h6.8a2 2 0 0 1 1.9 1.4l1.7 4.6"/><path d="M4 12.5h16V17a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-9v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M7.5 15h.01M16.5 15h.01"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5.5 4h3l1.6 4.2-2 1.4a10.5 10.5 0 0 0 6.3 6.3l1.4-2 4.2 1.6v3a1.5 1.5 0 0 1-1.5 1.5A16 16 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.5A7.5 7.5 0 0 1 9.5 4.5a7.5 7.5 0 1 0 10 10z"/></symbol>
+  <symbol id="i-park" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M10 16.5v-9h3a2.6 2.6 0 0 1 0 5.2h-3"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M3.5 18 8.5 6l5 12M5.3 14h6.4M15 18l3-7.5 3 7.5M15.9 15.8h4.2"/></symbol>
+  <symbol id="i-nav" viewBox="0 0 24 24"><path d="M12 3l7 18-7-4-7 4z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6.5 13.5 12 19l5.5-5.5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-watch" viewBox="0 0 24 24"><rect x="6.5" y="6" width="11" height="12" rx="3"/><path d="M9 6l.6-3h4.8l.6 3M9 18l.6 3h4.8l.6-3M12 9.5V12l1.5 1"/></symbol>
+
+  <symbol id="sb-signal" viewBox="0 0 17 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.6" y="5.4" width="3" height="6.6" rx="1"/><rect x="9.2" y="2.8" width="3" height="9.2" rx="1"/><rect x="13.8" y="0" width="3" height="12" rx="1"/></symbol>
+  <symbol id="sb-wifi" viewBox="0 0 16 12"><path d="M8 11.6.4 3.4a11 11 0 0 1 15.2 0z"/></symbol>
+  <symbol id="sb-bat" viewBox="0 0 25 12"><rect x=".75" y=".75" width="20.5" height="10.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".45"/><rect x="2.6" y="2.6" width="14" height="6.8" rx="1.6"/><rect x="22.3" y="4" width="2" height="4" rx="1" opacity=".45"/></symbol>
+</svg>
+
+<header class="head">
+  <div class="head-l">
+    <span class="logo"><svg class="ic"><use href="#i-swap"/></svg></span>
+    <div>
+      <h1>카릴레이 가족 폰 앱</h1>
+      <p>차 밖에서도 우리 차를 확인하고, 보호자는 알림을 받아요</p>
+    </div>
+  </div>
+  <div class="mock">
+    <svg class="ic"><use href="#i-info"/></svg>
+    <b>목업 · 확장 예정 화면</b>
+    <span>아직 만들지 않은 화면이에요</span>
+  </div>
+</header>
+
+<div class="row">
+
+  <!-- ① 우리 차 홈 (엄마의 폰) -->
+  <div class="col">
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar">
+          <span>8:10</span><i class="cam"></i>
+          <span class="sb"><svg width="17" height="12"><use href="#sb-signal"/></svg><svg width="16" height="12"><use href="#sb-wifi"/></svg><svg width="25" height="12"><use href="#sb-bat"/></svg></span>
+        </div>
+        <div class="appbar">
+          <div class="brand"><svg class="ic"><use href="#i-swap"/></svg>카릴레이</div>
+          <div class="who"><span class="av sm a2">엄</span>엄마</div>
+        </div>
+        <div class="content">
+          <div class="title-row">
+            <h2>우리 차</h2>
+            <div class="party">
+              <span class="stack"><span class="av xs a1">아</span><span class="av xs a2">엄</span><span class="av xs a3">딸</span><span class="av xs a4">할</span></span>
+              가족 4명
+            </div>
+          </div>
+
+          <div class="card carcard">
+            <svg class="car" viewBox="0 0 100 160">
+              <use href="#car"/>
+              <circle cx="50" cy="140.8" r="15" fill="none" stroke="#704900" stroke-opacity=".25" stroke-width="1.6"/>
+              <circle cx="50" cy="140.8" r="10" fill="#FFF0CC" stroke="#704900" stroke-width="2.4"/>
+              <circle cx="50" cy="140.8" r="3.2" fill="#704900"/>
+            </svg>
+            <div class="carinfo">
+              <div><span class="chip neutral"><svg class="ic s"><use href="#i-park"/></svg>주차 중</span></div>
+              <div class="stats">
+                <div><div class="lbl">배터리</div><div class="big">72<small>%</small></div></div>
+                <div><div class="lbl">갈 수 있는 거리</div><div class="big">410<small>km</small></div></div>
+              </div>
+            </div>
+            <div class="lastdrive"><span class="av xs a2">엄</span><span>마지막 운전 <b>엄마</b> · 2시간 전</span></div>
+          </div>
+
+          <div class="sec-head"><h3>확인할 것</h3><span class="n">2</span></div>
+          <div class="item warn">
+            <span class="item-ic"><svg class="ic"><use href="#i-car"/></svg></span>
+            <div>
+              <div class="item-title">뒤 범퍼 긁힘 · 처리 중</div>
+              <div class="item-sub">수리 맡겼어요 · 딸 신고</div>
+            </div>
+            <svg class="ic chev"><use href="#i-chev"/></svg>
+          </div>
+          <div class="item memo">
+            <span class="item-ic"><svg class="ic"><use href="#i-memo"/></svg></span>
+            <div>
+              <div class="item-kicker">아빠의 메모 · 아직 해결 전</div>
+              <div class="item-title">타이어 바람 확인이 필요해요</div>
+            </div>
+            <svg class="ic chev"><use href="#i-chev"/></svg>
+          </div>
+
+          <div class="card rec">
+            <div class="rec-top"><svg class="ic s"><use href="#i-moon"/></svg>오늘의 운전자 추천</div>
+            <div class="rec-main">
+              <span class="av a2">엄</span>
+              <div>
+                <div class="rec-name">엄마 <span>(나)</span></div>
+                <div class="rec-why">수면 7시간 · 워치 수면 요약</div>
+              </div>
+            </div>
+            <div class="rec-note"><svg class="ic s"><use href="#i-eye"/></svg>가족에게는 ‘컨디션 좋음’으로만 보여요</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="on"><span class="pill"><svg class="ic"><use href="#i-home"/></svg></span>홈</a>
+          <a><span class="pill"><svg class="ic"><use href="#i-memo"/></svg></span>메모</a>
+          <a><span class="pill"><svg class="ic"><use href="#i-list"/></svg></span>기록</a>
+          <a><span class="pill"><svg class="ic"><use href="#i-sliders"/></svg></span>설정</a>
+        </nav>
+        <i class="gesture"></i>
+      </div>
+    </div>
+    <div class="cap"><span class="num">1</span><div><b>우리 차</b><span>차 상태와 확인할 것을 폰에서 먼저 봐요</span></div></div>
+  </div>
+
+  <!-- ② 보호자 알림 (딸의 폰) -->
+  <div class="col">
+    <div class="phone s2">
+      <div class="push">
+        <span class="push-tag">푸시 알림</span>
+        <div class="push-head"><span class="appic"><svg class="ic"><use href="#i-swap"/></svg></span>카릴레이 · 지금</div>
+        <div class="push-title">할아버지 케어 모드 알림</div>
+        <div class="push-body">응답이 없어 가까운 졸음쉼터로 안내를 시작했어요</div>
+      </div>
+      <div class="screen">
+        <div class="statusbar">
+          <span>14:04</span><i class="cam"></i>
+          <span class="sb"><svg width="17" height="12"><use href="#sb-signal"/></svg><svg width="16" height="12"><use href="#sb-wifi"/></svg><svg width="25" height="12"><use href="#sb-bat"/></svg></span>
+        </div>
+        <div class="content">
+          <div class="hero">
+            <span class="hero-ic"><svg class="ic l"><use href="#i-bell"/></svg></span>
+            <div>
+              <span class="chip memo"><svg class="ic s"><use href="#i-shield"/></svg>할아버지 케어 모드</span>
+              <div class="hero-time">오늘 14:03 · 딸에게 온 알림</div>
+            </div>
+          </div>
+          <h2 class="hero-title">응답이 없어 가까운 졸음쉼터로 안내를 시작했어요</h2>
+
+          <div class="card tlcard">
+            <h4>지금까지 있었던 일</h4>
+            <ul class="tl">
+              <li><span class="t">14:02</span><i class="d" style="background:#8A9AA1"></i><span class="x">주행 기어로 정차 · 무조작 감지</span></li>
+              <li><span class="t">14:02</span><i class="d" style="background:#B07A10"></i><span class="x">“괜찮으세요?” 무응답</span></li>
+              <li><span class="t">14:03</span><i class="d" style="background:var(--primary)"></i><span class="x">성남졸음쉼터로 안내 시작<small>6.3km · 약 14분</small></span></li>
+            </ul>
+            <div class="loc"><svg class="ic"><use href="#i-pin"/></svg>위치: 수정구 시흥동<span>14:03 기준</span></div>
+          </div>
+
+          <div class="btns">
+            <div class="btn sec"><svg class="ic"><use href="#i-phone"/></svg>전화하기</div>
+            <div class="btn pri"><svg class="ic"><use href="#i-check"/></svg>확인했어요</div>
+          </div>
+          <div class="note"><svg class="ic s"><use href="#i-lock"/></svg>위치는 이 알림에만 쓰고 저장하지 않아요</div>
+        </div>
+        <i class="gesture"></i>
+      </div>
+    </div>
+    <div class="cap"><span class="num">2</span><div><b>보호자 알림 · 딸의 폰</b><span>푸시 알림을 누르면 무슨 일인지 차례로 보여요</span></div></div>
+  </div>
+
+  <!-- ③ 할아버지 프로필 · 설정 (할아버지의 폰) -->
+  <div class="col">
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar">
+          <span>10:30</span><i class="cam"></i>
+          <span class="sb"><svg width="17" height="12"><use href="#sb-signal"/></svg><svg width="16" height="12"><use href="#sb-wifi"/></svg><svg width="25" height="12"><use href="#sb-bat"/></svg></span>
+        </div>
+        <div class="appbar">
+          <div class="brand"><svg class="ic"><use href="#i-swap"/></svg>카릴레이</div>
+          <div class="who"><span class="av sm a4">할</span>할아버지</div>
+        </div>
+        <div class="content">
+          <div class="card profile">
+            <div class="p-top">
+              <span class="av lg a4">할</span>
+              <div>
+                <div class="pname">할아버지</div>
+                <div class="psub">1종 보통 · 운전 48년</div>
+              </div>
+            </div>
+            <div class="p-lic">
+              <span class="chip warn"><svg class="ic s"><use href="#i-clock"/></svg>면허 갱신 D-20</span>
+              <span>갱신할 때가 됐어요</span>
+            </div>
+            <div class="pnote"><svg class="ic s"><use href="#i-shield"/></svg>면허 번호는 받지도, 저장하지도 않아요</div>
+          </div>
+
+          <div class="card settings">
+            <div class="set">
+              <span class="set-ic"><svg class="ic"><use href="#i-text"/></svg></span>
+              <div class="set-title">큰 글씨 모드</div>
+              <div class="sw">켜짐<span class="toggle"></span></div>
+              <div class="set-desc">할아버지가 운전할 때만 차 화면 글씨가 커져요</div>
+            </div>
+            <div class="set">
+              <span class="set-ic"><svg class="ic"><use href="#i-shield"/></svg></span>
+              <div class="set-title">케어 모드</div>
+              <div class="sw">켜짐<span class="toggle"></span></div>
+              <div class="set-desc guard-row"><span class="chip ok sm"><svg class="ic s"><use href="#i-check"/></svg>본인 동의</span><span class="guard">보호자 <span class="av xs a3">딸</span><b>딸</b></span></div>
+            </div>
+          </div>
+
+          <div class="card voice">
+            <div class="voice-head"><span class="set-ic"><svg class="ic"><use href="#i-mic"/></svg></span><div class="set-title">차에서 말로 남긴 메모</div></div>
+            <div class="bubble"><small>할아버지가 운전 중에 말한 것</small>“다음 사람한테 주유하라고 전해 줘”</div>
+            <div class="conv"><svg class="ic s"><use href="#i-down"/></svg>메모로 바꿨어요</div>
+            <div class="memo-line"><svg class="ic"><use href="#i-memo"/></svg><span><b>할아버지의 메모:</b> <em>주유해 주세요</em></span></div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a><span class="pill"><svg class="ic"><use href="#i-home"/></svg></span>홈</a>
+          <a><span class="pill"><svg class="ic"><use href="#i-memo"/></svg></span>메모</a>
+          <a><span class="pill"><svg class="ic"><use href="#i-list"/></svg></span>기록</a>
+          <a class="on"><span class="pill"><svg class="ic"><use href="#i-sliders"/></svg></span>설정</a>
+        </nav>
+        <i class="gesture"></i>
+      </div>
+    </div>
+    <div class="cap"><span class="num">3</span><div><b>프로필 · 설정 · 할아버지의 폰</b><span>큰 글씨, 케어 모드, 말로 남기는 메모</span></div></div>
+  </div>
+
+</div>
+</body>
+</html>

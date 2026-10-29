@@ -42,7 +42,8 @@ class AaosCarSignals(private val context: Context) {
                 // VHAL 속도 단위는 m/s
                 VehiclePropertyIds.PERF_VEHICLE_SPEED -> {
                     val kmh = (value.value as? Float)?.let { abs(it) * 3.6 }
-                    if (BuildConfig.DEBUG) Log.d(TAG, "속도 ${kmh?.let { "%.1f".format(it) }} km/h")
+                    // 같은 값이 초당 여러 번 오므로 바뀔 때만 남깁니다(로그가 넘쳐 다른 로그가 지워지지 않게).
+                    if (BuildConfig.DEBUG && kmh?.toInt() != _speedKmh.value?.toInt()) Log.d(TAG, "속도 ${kmh?.let { "%.1f".format(it) }} km/h")
                     _speedKmh.value = kmh
                 }
             }

@@ -1,0 +1,9 @@
+rest_stops.json (app-vehicle/src/main/assets)
+
+대한민국의 고속도로 휴게소·졸음쉼터 이름과 좌표를 OpenStreetMap 에서 추출한 데이터입니다.
+(highway=services / highway=rest_area 중 이름에 '휴게소' 또는 '쉼터'가 들어간 장소, 주유소 제외, 같은 이름 500m 안 중복 제거)
+추출일: 2026-10-29, Overpass API
+
+데이터 출처: © OpenStreetMap contributors
+라이선스: Open Database License (ODbL) 1.0 — https://opendatacommons.org/licenses/odbl/1-0/
+이 파일(파생 데이터베이스)도 ODbL 1.0 을 따릅니다. https://www.openstreetmap.org/copyright

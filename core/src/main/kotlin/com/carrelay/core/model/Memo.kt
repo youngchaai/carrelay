@@ -39,6 +39,10 @@ data class Memo(
     val preset: MemoPreset? = null,
     val readBy: Map<String, Long> = emptyMap(),
     val resolution: Resolution? = null,
+    /** 특정 가족에게 남긴 말("엄마한테 …")이면 그 사람. 그래도 차 문제이므로 모두에게 보입니다. */
+    val toDriverId: String? = null,
+    /** 말로 남긴 메모인지 (화면에 마이크 표시) */
+    val spoken: Boolean = false,
 ) {
     val isResolved: Boolean get() = resolution != null
     fun isReadBy(driverId: String): Boolean = driverId == authorId || readBy.containsKey(driverId)

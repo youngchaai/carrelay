@@ -33,11 +33,12 @@ object SeedData {
                     licenseClass = LicenseClass.CLASS2_NORMAL,
                     licenseExpiryEpochDay = today.plusYears(9).toEpochDay(), licensedSinceYear = year - 1, // 초보 운전
                 ),
-                // 시나리오 B: 본인 동의로 케어 모드를 켠 고령 가족(샘플). 면허 갱신(적성검사) 임박.
+                // 시나리오 B: 본인 동의로 케어 모드를 켠 고령 가족(샘플). 면허 갱신(적성검사) 임박. 큰 글씨 모드 사용.
                 Driver(
                     id = "grandpa", name = "할아버지", careModeEnabled = true, guardianName = "딸",
                     licenseClass = LicenseClass.CLASS1_NORMAL,
                     licenseExpiryEpochDay = today.plusDays(20).toEpochDay(), licensedSinceYear = 1978,
+                    largeText = true,
                 ),
             ),
             conditions = mapOf(

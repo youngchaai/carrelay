@@ -5,6 +5,7 @@ import com.carrelay.core.care.CareEvent
 import com.carrelay.core.care.CareModeMonitor
 import com.carrelay.core.care.CareReason
 import com.carrelay.core.handover.Briefing
+import com.carrelay.core.memo.VoiceMemoDraft
 import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.DriverCondition
@@ -96,7 +97,35 @@ data class UiState(
     val demoFastThresholds: Boolean = false,
     val voiceEnabled: Boolean = true,
     val toast: String? = null,
+
+    /** 말로 남기는 메모 (null 이면 닫힘) */
+    val voiceMemo: VoiceMemoUi? = null,
 )
+
+/** 말로 남기는 메모 진행 상태 */
+data class VoiceMemoUi(
+    val stage: Stage,
+    /** 들은 말 (듣는 동안에는 중간 결과) */
+    val heard: String = "",
+    val draft: VoiceMemoDraft? = null,
+    val message: String? = null,
+    /** 주행 중에는 버튼을 누르지 않아도 몇 초 뒤 저장합니다 */
+    val autoSaveIn: Int? = null,
+) {
+    enum class Stage {
+        /** 차량 마이크로 듣는 중 */
+        LISTENING,
+
+        /** 마이크가 없는 가상 빌드: 예시 문장 고르기 */
+        EXAMPLES,
+
+        /** 이렇게 남길까요? */
+        CONFIRM,
+
+        /** 알아듣지 못함 */
+        FAILED,
+    }
+}
 
 fun UiState.nameOf(driverId: String): String =
     drivers.firstOrNull { it.id == driverId }?.name

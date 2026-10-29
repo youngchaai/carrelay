@@ -8,8 +8,11 @@ import com.carrelay.vehicle.data.VehicleGatewayProvider
 import com.carrelay.vehicle.feature.GuardianNotifier
 import com.carrelay.vehicle.feature.LocalGuardianNotifier
 import com.carrelay.vehicle.feature.RestStopNavigator
-import com.carrelay.vehicle.feature.SimulatedRestStopNavigator
+import com.carrelay.vehicle.feature.NavigatorProvider
+import com.carrelay.vehicle.feature.RestStopCatalog
 import com.carrelay.vehicle.feature.Speaker
+import com.carrelay.vehicle.feature.VoiceInput
+import com.carrelay.vehicle.feature.VoiceInputProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +26,8 @@ class AppContainer(context: Context) {
     val store = LocalStore(context)
     val speaker = Speaker(context)
     val uxMonitor = UxRestrictionMonitor(context)
-    val navigator: RestStopNavigator = SimulatedRestStopNavigator()
+    val restStops = RestStopCatalog(context)
+    val navigator: RestStopNavigator = NavigatorProvider.create(context, restStops)
     val guardianNotifier: GuardianNotifier = LocalGuardianNotifier()
+    val voice: VoiceInput = VoiceInputProvider.create(context)
 }

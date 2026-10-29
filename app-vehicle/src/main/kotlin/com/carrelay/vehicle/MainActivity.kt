@@ -20,23 +20,28 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: CarRelayViewModel by viewModels { CarRelayViewModel.Factory }
 
-    private val speedPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+    // Pleos 빌드: 속도(급정거·케어 모드)와 위치(휴게소 경유지·보호자 알림 위치) 권한
+    private val runtimePermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             viewModel.onPermissionsChanged()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge() // targetSdk 35: 화면 여백은 CarRelayApp 의 safeDrawingPadding 으로 처리
-        if (BuildConfig.USE_PLEOS_SDK &&
-            checkSelfPermission(AaosCarSignals.PERMISSION_SPEED) != PackageManager.PERMISSION_GRANTED
-        ) {
-            speedPermission.launch(AaosCarSignals.PERMISSION_SPEED)
+        if (BuildConfig.USE_PLEOS_SDK) {
+            val missing = listOf(AaosCarSignals.PERMISSION_SPEED, PERMISSION_LOCATION)
+                .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+            if (missing.isNotEmpty()) runtimePermissions.launch(missing.toTypedArray())
         }
         setContent {
             CarRelayTheme {
                 CarRelayApp(viewModel)
             }
         }
+    }
+
+    private companion object {
+        const val PERMISSION_LOCATION = "pleos.car.permission.FUSED_LOCATION"
     }
 }

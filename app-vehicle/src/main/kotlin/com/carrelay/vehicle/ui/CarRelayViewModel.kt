@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.carrelay.core.text.KoreanText
 import com.carrelay.core.care.CareDailySummary
 import com.carrelay.core.care.CareEffect
 import com.carrelay.core.care.CareEvent
@@ -16,6 +17,7 @@ import com.carrelay.core.driving.DrivingEventDetector
 import com.carrelay.core.handover.HandoverBriefingBuilder
 import com.carrelay.core.incident.IncidentLog
 import com.carrelay.core.memo.MemoBoard
+import com.carrelay.core.memo.VoiceMemoParser
 import com.carrelay.core.model.CarZone
 import com.carrelay.core.model.DoorEvent
 import com.carrelay.core.model.Driver
@@ -42,7 +44,9 @@ import com.carrelay.vehicle.data.AppData
 import com.carrelay.vehicle.data.FakeVehicleGateway
 import com.carrelay.vehicle.data.GuardianAlert
 import com.carrelay.vehicle.data.SeedData
+import com.carrelay.vehicle.feature.VoiceResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -62,6 +66,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     private val gateway = container.gateway
     private val speaker = container.speaker
+    private val voice = container.voice
+    private var voiceJob: Job? = null
 
     /** 가상 차량일 때만 값이 있습니다('가상 차량' 패널용). */
     val simulatedCar: FakeVehicleGateway? = gateway as? FakeVehicleGateway
@@ -233,12 +239,18 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                         .takeLast(MAX_CARE_EVENTS),
                 )
                 is CareEffect.AskAreYouOk -> {
+                    // 안부 확인이 먼저입니다: 말로 메모를 남기던 중이면 닫습니다.
+                    if (_ui.value.voiceMemo != null) cancelVoiceMemo()
                     _ui.update { it.copy(careCheckIn = effect.reason, shiftAdvice = null) }
                     speaker.speak("${driver.name}님, 괜찮으세요? 괜찮으시면 화면의 괜찮아요 버튼을 눌러 주세요.")
                 }
                 is CareEffect.AddRestStopWaypoint -> viewModelScope.launch {
-                    toast(container.navigator.addNearestRestStop())
-                    speaker.speak("응답이 없어 가까운 졸음쉼터를 경유지로 추가했어요. 잠시 쉬어 가세요.")
+                    val r = container.navigator.addNearestRestStop()
+                    toast(r.message)
+                    speaker.speak(
+                        if (r.added && r.stopName != null) "응답이 없어 ${KoreanText.obj(r.stopName)} 경유지로 추가했어요. 잠시 쉬어 가세요."
+                        else r.message,
+                    )
                 }
                 is CareEffect.NotifyGuardian -> viewModelScope.launch {
                     val location = container.navigator.currentLocationText()
@@ -392,6 +404,95 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         persist()
     }
 
+    // ── 말로 남기는 메모 ───────────────────────────────────
+
+    /** 마이크 버튼: 차량 마이크로 듣거나(Pleos), 가상 빌드에서는 예시 문장을 고르게 합니다. */
+    fun startVoiceMemo() {
+        voiceJob?.cancel()
+        speaker.stop()
+        if (!voice.isAvailable) {
+            _ui.update { it.copy(voiceMemo = VoiceMemoUi(VoiceMemoUi.Stage.EXAMPLES)) }
+            return
+        }
+        _ui.update { it.copy(voiceMemo = VoiceMemoUi(VoiceMemoUi.Stage.LISTENING)) }
+        voiceJob = viewModelScope.launch {
+            val result = voice.listen { partial ->
+                _ui.update { s ->
+                    val v = s.voiceMemo
+                    if (v?.stage == VoiceMemoUi.Stage.LISTENING) s.copy(voiceMemo = v.copy(heard = partial)) else s
+                }
+            }
+            when (result) {
+                is VoiceResult.Heard -> onHeard(result.text)
+                is VoiceResult.Failed -> _ui.update {
+                    if (it.voiceMemo == null) it else it.copy(voiceMemo = VoiceMemoUi(VoiceMemoUi.Stage.FAILED, message = result.message))
+                }
+                VoiceResult.Cancelled -> Unit
+            }
+        }
+    }
+
+    /** 가상 빌드: 예시 문장을 말한 것처럼 */
+    fun pickVoiceExample(text: String) = onHeard(text)
+
+    private fun onHeard(text: String) {
+        Log.i(TAG, "말로 남기는 메모: '$text'")
+        val draft = VoiceMemoParser.parse(text, data.drivers.map { VoiceMemoParser.Person(it.id, it.name) })
+        if (draft == null) {
+            _ui.update {
+                it.copy(voiceMemo = VoiceMemoUi(VoiceMemoUi.Stage.FAILED, heard = text, message = "무엇을 남길지 알아듣지 못했어요"))
+            }
+            return
+        }
+        val driving = _ui.value.drivingUi
+        _ui.update {
+            it.copy(
+                voiceMemo = VoiceMemoUi(
+                    VoiceMemoUi.Stage.CONFIRM, heard = text, draft = draft,
+                    autoSaveIn = if (driving) AUTO_SAVE_SECONDS else null,
+                ),
+            )
+        }
+        if (driving) {
+            // 주행 중에는 화면을 누르지 않아도 되게, 읽어 준 뒤 몇 초 뒤 저장합니다(취소 가능).
+            speaker.speak("${draft.text}. 이렇게 남길게요")
+            voiceJob = viewModelScope.launch {
+                for (left in AUTO_SAVE_SECONDS downTo 1) {
+                    _ui.update { s -> s.copy(voiceMemo = s.voiceMemo?.copy(autoSaveIn = left)) }
+                    delay(1_000)
+                }
+                voiceJob = null
+                saveVoiceMemo()
+            }
+        }
+    }
+
+    fun saveVoiceMemo() {
+        val draft = _ui.value.voiceMemo?.draft ?: return
+        voiceJob?.cancel()
+        voiceJob = null
+        val author = currentDriver()?.id ?: Driver.GUEST_ID
+        data = data.copy(
+            memos = MemoBoard.add(
+                data.memos, UUID.randomUUID().toString(), author, now(),
+                preset = draft.preset, text = draft.text, toDriverId = draft.toDriverId, spoken = true,
+            ),
+        )
+        _ui.update { it.copy(voiceMemo = null) }
+        val to = draft.toDriverId?.takeIf { it != author }?.let(::nameOf)
+        toast(if (to != null) "${to}에게 메모를 남겼어요" else "메모를 남겼어요. 다음 운전자에게 전달돼요")
+        if (_ui.value.drivingUi) speaker.speak("메모를 남겼어요")
+        publishData()
+        persist()
+    }
+
+    fun cancelVoiceMemo() {
+        voiceJob?.cancel()
+        voiceJob = null
+        voice.cancel()
+        _ui.update { it.copy(voiceMemo = null) }
+    }
+
     fun resolveMemo(memoId: String, note: String) {
         val by = currentDriver()?.id ?: Driver.GUEST_ID
         data = data.copy(memos = MemoBoard.resolve(data.memos, memoId, by, note, now()))
@@ -490,9 +591,9 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     fun acceptShift() {
         _ui.update { it.copy(shiftAdvice = null) }
         viewModelScope.launch {
-            val msg = container.navigator.addNearestRestStop()
-            toast(msg)
-            speaker.speak("휴게소를 경유지로 추가했어요.")
+            val r = container.navigator.addNearestRestStop()
+            toast(r.message)
+            speaker.speak(if (r.added && r.stopName != null) "${KoreanText.obj(r.stopName)} 경유지로 추가했어요." else r.message)
         }
     }
 
@@ -504,6 +605,14 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     fun setCareMode(driverId: String, enabled: Boolean) {
         data = data.copy(drivers = data.drivers.map { if (it.id == driverId) it.copy(careModeEnabled = enabled) else it })
         if (currentDriver()?.id == driverId) careMonitor.reset()
+        publishData()
+        persist()
+    }
+
+    /** 큰 글씨 모드: 이 사람이 운전할 때만 차 화면의 글씨와 버튼을 키웁니다. */
+    fun setLargeText(driverId: String, enabled: Boolean) {
+        data = data.copy(drivers = data.drivers.map { if (it.id == driverId) it.copy(largeText = enabled) else it })
+        toast(if (enabled) "${nameOf(driverId)}님이 운전할 때 글씨를 크게 보여 드려요" else "${nameOf(driverId)}님 큰 글씨를 껐어요")
         publishData()
         persist()
     }
@@ -634,6 +743,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         private const val MAX_SESSIONS = 300
         private const val MAX_ALERTS = 100
         private const val MAX_INCIDENTS = 200
+        private const val AUTO_SAVE_SECONDS = 5
 
         fun localHour(epochMillis: Long): Int =
             Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).hour

@@ -27,10 +27,12 @@
 | **F3 사고·파손 신고** | 두 단계: ① 무슨 일(긁힘·찌그러짐 등) ② **차 그림에서 위치**(모르면 건너뛰기). 처리 필요 → 처리 중(수리·보험 맡김) → 처리 완료(다 고쳤어요). 완료 전까지 모든 운전자 브리핑 맨 위에 표시 | ✅ |
 | **F5 운행 후 이상 확인** | 모든 운전자의 급정거(3.5m/s² 이상)·급가속(3.0m/s² 이상) 횟수를 운전 구간별로 기록. 주차 후 급정거가 있었으면 "차에 이상이 있나요?" | ✅ 가상 차량 · Pleos 에뮬레이터 실제 속도 신호로 검증 (실차는 아직) |
 | **가족 프로필** | 면허 종류·경력, **갱신 D-day**(60일 전부터 표시), 초보 운전(2년 미만), 운전자별 신고·발견 건수. **면허 번호는 저장하지 않음** | ✅ 샘플 데이터 · 입력은 폰 앱(확장) |
-| **F4 교대 감지·안내** | 주차 중 운전석 문 열림→닫힘 시 "운전자 바뀌셨나요?" / 연속 2시간·심야 1시간 휴식·교대 권유 | ✅ |
+| **F4 교대 감지·안내** | 주차 중 운전석 문 열림→닫힘 시 "운전자 바뀌셨나요?" / 연속 2시간·심야 1시간 휴식·교대 권유 → **휴게소 추가**를 누르면 진행 방향 앞쪽의 가까운 휴게소를 경유지로 | ✅ (Pleos 빌드는 Pleos 내비 연동) |
 | **F4 오늘의 운전자 추천** | 수면 시간 요약(워치→폰 앱)을 비교해 출발 전 추천 | ✅ 샘플 데이터 |
-| **F6 케어 모드** | 본인 동의한 파티원만. 주행 기어 정차·무조작 / 급감속 반복 → "괜찮으세요?" → 무응답 시 쉼터 경유지 → 보호자 알림 | ✅ 로직 · 서버 알림 예정 |
+| **F6 케어 모드** | 본인 동의한 파티원만. 주행 기어 정차·무조작 / 급감속 반복 → "괜찮으세요?" → 무응답 시 가까운 졸음쉼터로 **Pleos 내비 안내** → 보호자 알림(현재 주소 포함) | ✅ 로직·내비·위치 · 보호자 폰 전송은 서버 확장 |
 | **F5 운전자별 기록** | 운전자별 주행 횟수·거리·시간·급정거·급가속, 사고·파손 이력, 케어 모드 하루 요약 | ✅ 기초 |
+| **말로 남기는 메모** | "다음 사람한테 주유하라고 전해 줘" → **"주유해 주세요"**. 받는 사람("엄마한테")과 메모 종류(주유·타이어…)를 알아서 정리하고 "이렇게 남길게요"로 확인. 주행 중에는 큰 버튼 하나 → 5초 뒤 자동 저장 | ✅ Pleos 빌드: SpeechToText 차량 내장 인식 · 가상 빌드: 예시 문장 고르기 |
+| **큰 글씨 모드** | 필요한 사람이 고르면 **그 사람이 운전할 때만** 화면 전체(글씨·버튼·간격)가 1.2배로 커짐 | ✅ 샘플: 할아버지 켜짐 |
 | F1 파티 (폰 앱) | 파티 생성·초대·Health Connect 연동 | 🗓 확장 |
 | 동기화 서버 · 보호자 푸시 | 메모·기록을 파티원 폰과 공유 | 🗓 확장 |
 
@@ -66,12 +68,13 @@ flowchart LR
         M["MemoBoard"]
         SH["ShiftAdvisor"]
         C["CareModeMonitor"]
+        RS["RestStopFinder<br/>앞쪽 쉼터 고르기"]
         I["IncidentLog<br/>사고·파손"]
         D["DrivingEventDetector<br/>급정거·급가속"]
         L["LicenseCheck<br/>면허 갱신"]
     end
     GW -- "기어·속도·문·연료·경고등" --> VM
-    VM <--> S & B & M & SH & C & I & D & L
+    VM <--> S & B & M & SH & C & I & D & L & RS
     VM --> UI
     VM <--> ST
     VM -. "확장: HTTPS" .-> SV["동기화 서버"] -.-> PH["파티원·보호자 폰"]
@@ -85,7 +88,7 @@ flowchart LR
 │  ├─ src/simulated/     carrelay.pleosSdk=false 일 때: 가상 차량 연결
 │  └─ src/pleos/         carrelay.pleosSdk=true 일 때: Pleos Vehicle SDK 연결
 ├─ apk/                  제출용 release APK (팀명_CarRelay_release.apk)
-└─ docs/                 개발환경 · 아키텍처 · 일정 · 기획 결정 사항
+└─ docs/                 개발환경 · 아키텍처 · 일정 · 기획 결정 사항 · 발표 목업(pt/)
 ```
 
 ## 실행 방법
@@ -126,6 +129,16 @@ flowchart LR
 4. 차를 둘러보고 **이상이 있어요** → **찌그러짐 · 뒤** → 직전 운전자(아빠)와 주차 시각이 함께 기록됨
 5. 사고 줄의 **처리하기** → **수리·보험 맡겼어요** → 처리 중으로 바뀜 → **확인했어요**
 6. **기록** → 사고·파손 이력 · 운전자별 급정거 횟수 / **설정** → 가족 프로필(면허 갱신 20일 남음 · 초보 운전)
+
+### 시연 순서 (말로 남기는 메모 · 큰 글씨)
+
+1. **아빠** 선택 → **메모 남기기** → **말로 남기기**
+   - Pleos 빌드: "엄마한테 타이어 바람 넣으라고 전해 줘"라고 말하기 (에뮬레이터는 마이크 켜기: [docs/01 5번](docs/01_개발환경_세팅.md#pleos-sdk-빌드와-virtual-console-1029-검증-완료))
+   - 가상 빌드: 같은 예시 문장을 누르기
+2. "이렇게 남길게요 · 엄마에게 · 타이어 바람 넣어 주세요" → **남기기** → 홈에 마이크 표시 메모
+3. **운전 끝내기** → **할아버지** 선택 → 화면 전체가 크게 → 브리핑 "아빠가 엄마에게 남긴 메모: 타이어 바람 넣어 주세요"
+4. `D` → **말로 메모 남기기** → 5초 뒤 자동 저장(버튼을 누르지 않아도 됨)
+5. **설정** → 가족 프로필의 **큰 글씨** 켜고 끄기
 
 ## 테스트 환경 및 필요한 설정
 
@@ -173,12 +186,13 @@ flowchart LR
 
 | 항목 | 내용 |
 |---|---|
-| 위치 | [`apk/`](apk/) 폴더 · 파일 이름 `팀명_CarRelay_release.apk` |
-| 상태 | **제출 전 업로드 예정** (release 서명 빌드) |
-| 설치 | AVD 를 켠 뒤 APK 파일을 에뮬레이터 창에 끌어다 놓거나, 아래 명령 실행 |
+| 파일 | [`apk/CarRelay_release.apk`](apk/) **Pleos SDK 빌드** (17.6MB) · [`apk/CarRelay_virtual_release.apk`](apk/) 가상 차량 빌드 (9.6MB) |
+| 상태 | ✅ release 서명 빌드 **v1.0.0** (2026-10-29) · Pleos Connect Emulator v2.1.0 에서 설치·실행 확인 · 제출 때 파일 이름 앞에 팀명을 붙입니다 (`팀명_CarRelay_release.apk`) |
+| 어떤 것을 | Pleos Connect Emulator + Virtual Console 로 실제 SDK 연동을 보려면 **CarRelay_release.apk**, 콘솔 없이 앱 안의 **가상 차량** 패널로 전체 흐름을 보려면 **CarRelay_virtual_release.apk** |
+| 설치 | AVD 를 켠 뒤 APK 파일을 에뮬레이터 창에 끌어다 놓거나, 아래 명령 실행 (두 파일은 같은 앱이라 하나만 설치) |
 
 ```bash
-adb install apk/팀명_CarRelay_release.apk
+adb install apk/CarRelay_release.apk
 ```
 
 APK 가 GitHub 파일 용량 제한을 넘으면 [GitHub Releases](../../releases) 에 올리고 여기에 링크를 남깁니다.
@@ -202,9 +216,16 @@ APK 가 GitHub 파일 용량 제한을 넘으면 [GitHub Releases](../../release
 | 엔진오일·브레이크액·워셔액 | Safety `registerEngineOilLevelState` 등 (`CAR_SAFETY`) | 구독 확인 · 콘솔에 조작 항목 없음 |
 | 계기판 경고등 (telltale) | Safety `registerTelltales` | ❌ `PRIVATE_CAR_SAFETY` 권한이 필요해 서드파티 앱은 못 받음 → 브리핑에 "경고등 정보: 이 앱에서는 볼 수 없어요"로 알리고, "경고등 없음"이라고 말하지 않음 |
 | 타이어 공기압 값 | Tire `registerTirePressure` | ❌ `PRIVATE_CAR_SAFETY` 필요 → 쓰지 않음 |
-| 쉼터 경유지 · 보호자 위치 · 음성 | NaviHelper · FusedLocation · TextToSpeech SDK | 확장 (현재 시뮬레이션 · Android 기본 TTS) |
+| **휴게소·졸음쉼터 안내** (교대 권유 · 케어 모드 2단계) | NaviHelper 3.0.5 `requestRoute` / `addWaypoint` | ✅ 케어 모드 무응답 → Pleos 내비가 **성남졸음쉼터(6.3km, 14분)** 로 안내 시작. 목적지가 있으면 첫 번째 경유지로 추가(`onWaypointChanged` ADD 확인) |
+| 현재 위치 (쉼터 고르기 · 보호자 알림) | NaviHelper `getCurrentLocationInfo` → FusedLocation 1.1.3 | ✅ 보호자 알림에 "위치: 수정구 시흥동" (내비 주소). FusedLocation 은 연결했지만 에뮬레이터에서는 안드로이드 기본 GPS 를 돌려줘 내비 위치를 먼저 씀 |
+| **말로 남기는 메모** | SpeechToText 3.3.1 `ON_DEVICE` (`initialize` → `request` → `onUpdated`) | ✅ 차량 내장 인식 엔진이 한국어를 받아씀: "엄마한테 타이어 바람 넣으라고 전해줘" → 메모 "엄마에게 · 타이어 바람 넣어 주세요". ON_DEVICE 는 앱 등록(Client ID) 없이 동작. 에뮬레이터에서는 마이크 대신 `sendAudio` 로 한국어 음성 파일을 넣어 확인. 합성 음성의 "주유"를 "주의"로 들은 적이 있어 저장 전에 꼭 확인 화면을 거침 |
+| 음성 안내 | TextToSpeech SDK | 확장 (현재 Android 기본 TTS) |
 
 값을 바꾸면 SDK 리스너가 알려 주고, 앱은 주기 갱신을 기다리지 않고 곧바로 다시 읽어 화면에 반영합니다.
+
+NaviHelper 에는 주변 검색 API 가 없어, 쉼터 좌표는 앱에 넣은 OpenStreetMap 목록에서 진행 방향 앞쪽(±60°)의 가장 가까운 곳을 고른 뒤 내비에 넘깁니다.
+
+> **주행 중 화면 제한:** 앱은 `distractionOptimized` 를 선언하고 주행 중 화면을 따로 두지만, adb 로 설치한 앱은 시스템의 주행 중 허용 목록에 없어, 에뮬레이터에서 기어가 D 일 때 앱을 새로 띄우면 시스템이 "주행 중에는 사용할 수 없습니다"로 가릴 수 있습니다. 시연할 때는 콘솔 기어를 P 로 두고 앱을 먼저 띄운 뒤 D 로 바꿉니다. 정식 배포(Pleos App Market)에서는 심사를 거쳐 허용 목록에 오릅니다.
 
 ### Pleos 빌드로 실행하기 (Virtual Console)
 
@@ -240,6 +261,7 @@ PC 브라우저에서 `http://127.0.0.1:8088/` → **Emulation Controls** → `E
 |---|---|---|
 | [Pretendard](https://github.com/orioncactus/pretendard) 1.3.9 | 앱 글꼴 (Regular·SemiBold·Bold) | SIL Open Font License 1.1 — [third_party/pretendard/LICENSE.txt](third_party/pretendard/LICENSE.txt) |
 | Jetpack Compose · AndroidX · kotlinx.serialization · coroutines | UI · 저장 · 비동기 | Apache License 2.0 |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) 데이터 | 전국 휴게소·졸음쉼터 1,004곳 이름·좌표 (`assets/rest_stops.json`) | © OpenStreetMap contributors, ODbL 1.0 — [third_party/openstreetmap/NOTICE.txt](third_party/openstreetmap/NOTICE.txt) |
 
 ## 문서
 
@@ -248,3 +270,4 @@ PC 브라우저에서 `http://127.0.0.1:8088/` → **Emulation Controls** → `E
 - [03 개발 일정 · 체크리스트](docs/03_개발일정_체크리스트.md)
 - [04 기획 결정 사항](docs/04_기획_결정사항.md)
 - [05 시연 영상 대본](docs/05_시연영상_대본.md)
+- [발표용 목업: 가족 폰 앱 · 법인차 관리 화면](docs/pt/README.md) (확장 예정 화면)

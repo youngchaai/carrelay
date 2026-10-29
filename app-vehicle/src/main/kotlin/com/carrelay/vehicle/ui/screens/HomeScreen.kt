@@ -104,8 +104,8 @@ fun HomeScreen(
                     }
                     unresolved.forEach { memo ->
                         NoticeRow(
-                            CarIcons.Memo, CarRelayTheme.status.memo,
-                            "${ui.nameOf(memo.authorId)}의 메모: ${memo.text}",
+                            if (memo.spoken) CarIcons.Mic else CarIcons.Memo, CarRelayTheme.status.memo,
+                            "${ui.nameOf(memo.authorId)}의 메모" + (memo.toDriverId?.let { "(${ui.nameOf(it)}에게)" } ?: "") + ": ${memo.text}",
                             actionLabel = "해결했어요", onClick = { memoFor = memo.id },
                         )
                     }

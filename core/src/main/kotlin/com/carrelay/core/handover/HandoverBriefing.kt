@@ -151,7 +151,13 @@ object HandoverBriefingBuilder {
         // 4) 사람의 메모: 안 읽은 메모 > 읽었지만 미해결 메모
         val unresolved = MemoBoard.unresolvedFor(memos, driver.id)
         unresolved.forEach { memo ->
-            val author = if (memo.authorId == driver.id) "내가 남긴" else "${nameOf(memo.authorId)}의"
+            val to = memo.toDriverId
+            val author = when {
+                memo.authorId == driver.id -> "내가 남긴"
+                to == driver.id -> "${KoreanText.subject(nameOf(memo.authorId))} 나에게 남긴"
+                to != null -> "${KoreanText.subject(nameOf(memo.authorId))} ${nameOf(to)}에게 남긴"
+                else -> "${nameOf(memo.authorId)}의"
+            }
             val isNew = !memo.isReadBy(driver.id)
             items += BriefingItem(
                 kind = if (isNew) BriefingItem.Kind.NEW_MEMO else BriefingItem.Kind.UNRESOLVED_MEMO,
