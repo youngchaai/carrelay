@@ -36,7 +36,7 @@ class HandoverBriefingBuilderTest {
 
         val first = briefing.items.first()
         assertEquals(BriefingItem.Kind.NEW_WARNING, first.kind)
-        assertEquals("지난 확인 이후 타이어 공기압 경고가 새로 켜졌어요", first.message)
+        assertEquals("지난번 이후 타이어 공기압 경고가 새로 켜졌어요", first.message)
     }
 
     @Test
@@ -58,9 +58,9 @@ class HandoverBriefingBuilderTest {
         val briefing = build(mom, current, lastSeen)
 
         val low = briefing.items.first { it.kind == BriefingItem.Kind.ENERGY_LOW }
-        assertEquals("연료 12%, 주행 가능 거리 70km. 출발 전 주유가 필요해요", low.message)
+        assertEquals("연료 12%, 70km 갈 수 있어요. 출발 전에 주유해 주세요", low.message)
         val change = briefing.items.first { it.kind == BriefingItem.Kind.ENERGY_CHANGE }
-        assertEquals("연료: 마지막 확인 때 45% → 지금 12%", change.message)
+        assertEquals("연료가 지난번 45%에서 지금 12%로 줄었어요", change.message)
     }
 
     @Test

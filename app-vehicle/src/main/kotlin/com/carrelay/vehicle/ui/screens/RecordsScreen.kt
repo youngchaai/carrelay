@@ -58,7 +58,7 @@ fun RecordsScreen(ui: UiState, onUpdateIncident: (id: String, IncidentStatus, no
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Dimens.gapS),
         ) {
-            ScreenHeader("운전 기록", "계기판 거리 기준 · 고르지 않고 출발한 운전은 '미확인'")
+            ScreenHeader("운전 기록", "누가 얼마나 운전했는지 보여 드려요")
             val byDriver = ui.sessions.groupBy { it.driverId }
             if (byDriver.isEmpty()) {
                 EmptyCard("아직 끝난 운전이 없어요. 운전자를 바꾸거나 '운전 끝내기'를 누르면 기록돼요.")
@@ -82,14 +82,17 @@ fun RecordsScreen(ui: UiState, onUpdateIncident: (id: String, IncidentStatus, no
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(KoreanText.distance(distance), style = MaterialTheme.typography.headlineMedium)
-                            if (unconfirmed > 0) StatusBadge("미확인 ${unconfirmed}회", status.warning)
+                            if (unconfirmed > 0) StatusBadge("운전자 확인 필요 ${unconfirmed}회", status.warning)
                         }
                     }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatusBadge("급정거 ${decel}회", if (decel > 0) status.warning else neutralTone())
-                        StatusBadge("급가속 ${accel}회", if (accel > 0) status.warning else neutralTone())
-                        if (stats.selfReported > 0) StatusBadge("직접 신고 ${stats.selfReported}건", status.info)
-                        if (stats.foundAfterMyDrive > 0) StatusBadge("운전 후 발견 ${stats.foundAfterMyDrive}건", status.danger)
+                    // 0회는 적지 않습니다. 있는 것만 보여 줘야 눈에 들어옵니다.
+                    if (decel + accel + stats.selfReported + stats.foundAfterMyDrive > 0) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (decel > 0) StatusBadge("급정거 ${decel}회", status.warning)
+                            if (accel > 0) StatusBadge("급가속 ${accel}회", status.warning)
+                            if (stats.selfReported > 0) StatusBadge("직접 신고 ${stats.selfReported}건", status.info)
+                            if (stats.foundAfterMyDrive > 0) StatusBadge("운전 후 발견 ${stats.foundAfterMyDrive}건", status.danger)
+                        }
                     }
                 }
             }

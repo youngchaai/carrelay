@@ -35,13 +35,15 @@ fun IncidentStatusDialog(
                 )
                 incident.previousDriverId?.let { prev ->
                     Text(
-                        "직전 운전: ${nameOf(prev)}" + (incident.previousParkedAtMillis?.let { " · ${formatDateTime(it)} 주차" } ?: "") + " — 확인이 필요해요",
+                        "직전 운전: ${nameOf(prev)}" + (incident.previousParkedAtMillis?.let { " (${formatDateTime(it)} 주차)" } ?: "") + ". 함께 확인해 주세요",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
                 Text("지금 상태: ${incident.status.label}" + incident.statusNote.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(), style = MaterialTheme.typography.bodyLarge)
-                SecondaryButton("보험·정비 접수했어요", { onUpdate(IncidentStatus.IN_PROGRESS, "보험·정비 접수") }, Modifier.fillMaxWidth(), height = 88.dp, icon = CarIcons.Clock)
-                PrimaryButton("처리 완료", { onUpdate(IncidentStatus.RESOLVED, "처리 완료") }, Modifier.fillMaxWidth(), height = 88.dp, icon = CarIcons.CheckCircle)
+                if (incident.status != IncidentStatus.IN_PROGRESS) {
+                    SecondaryButton("수리·보험 맡겼어요", { onUpdate(IncidentStatus.IN_PROGRESS, "수리·보험 접수") }, Modifier.fillMaxWidth(), height = 96.dp, icon = CarIcons.Clock)
+                }
+                PrimaryButton("다 고쳤어요", { onUpdate(IncidentStatus.RESOLVED, "처리 완료") }, Modifier.fillMaxWidth(), height = 96.dp, icon = CarIcons.CheckCircle)
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("닫기", style = MaterialTheme.typography.labelLarge) } },

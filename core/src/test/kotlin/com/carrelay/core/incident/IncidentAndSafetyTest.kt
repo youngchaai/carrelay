@@ -73,7 +73,7 @@ class IncidentAndSafetyTest {
         )
         val first = b.items.first()
         assertEquals(BriefingItem.Kind.OPEN_INCIDENT, first.kind)
-        assertEquals("처리 필요: 앞 긁힘 (딸 신고)", first.message)
+        assertEquals("앞 긁힘: 아직 고치지 않았어요", first.message)
         assertEquals("i1", first.incidentId)
     }
 

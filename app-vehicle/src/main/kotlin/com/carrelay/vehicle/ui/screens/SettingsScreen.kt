@@ -70,11 +70,15 @@ fun SettingsScreen(
             SectionTitle("가족 프로필") {
                 StatusBadge("면허 번호는 저장하지 않아요", neutralTone(), icon = CarIcons.Shield)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gapS)) {
-                ui.drivers.forEach { d -> ProfileCard(d, ui, Modifier.weight(1f)) }
+            // 두 명씩 두 줄: 한 칸이 넓어야 글자가 중간에서 끊기지 않습니다.
+            ui.drivers.chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gapS)) {
+                    pair.forEach { d -> ProfileCard(d, ui, Modifier.weight(1f)) }
+                    if (pair.size == 1) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                }
             }
             Text(
-                "면허 종류·갱신일·취득 연도는 각자 폰 앱에서 본인이 입력해요. 사고·파손은 차에서 신고한 기록만 모아요.",
+                "면허 정보는 각자 폰 앱에서 본인이 입력해요. 컨디션은 워치 수면 요약을 바탕으로 한 참고 정보이고, 가족에게는 3단계(좋음·보통·휴식 필요)만 보여요.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -190,41 +194,30 @@ private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier) {
             Column(Modifier.weight(1f)) {
                 Text(d.name, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    d.licenseClass?.label ?: "면허 정보 없음",
-                    style = MaterialTheme.typography.bodyMedium,
+                    buildString {
+                        append(d.licenseClass?.label ?: "면허 정보 없음")
+                        license?.yearsLicensed?.let { y -> append(if (y <= 0) " · 운전 1년 미만" else " · 운전 ${y}년") }
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
                 )
-                license?.yearsLicensed?.let { y ->
-                    Text(
-                        if (y <= 0) "운전 경력 1년 미만" else "운전 경력 ${y}년",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
-                }
             }
         }
+        // 알아야 할 것만: 갱신이 가까우면 갱신, 초보면 초보. 문제없으면 아무것도 붙이지 않습니다.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (license?.state) {
-                LicenseState.RENEW_SOON -> StatusBadge("면허 ${license?.renewalLabel.orEmpty()}", s.warning, icon = CarIcons.Clock)
-                LicenseState.EXPIRED -> StatusBadge("면허 ${license?.renewalLabel.orEmpty()}", s.danger, icon = CarIcons.Warning)
-                LicenseState.OK -> StatusBadge("면허 유효", s.ok, icon = CarIcons.Check)
-                else -> Unit // 정보 없음은 이름 아래에 이미 표시
+                LicenseState.RENEW_SOON -> StatusBadge("면허 갱신 ${license?.daysLeft ?: 0}일 남음", s.warning, icon = CarIcons.Clock)
+                LicenseState.EXPIRED -> StatusBadge("면허 갱신 기한 지남", s.danger, icon = CarIcons.Warning)
+                else -> Unit
             }
             if (license?.isNovice == true) StatusBadge("초보 운전", s.info, icon = CarIcons.Info)
-            if (d.careModeEnabled) StatusBadge("케어", s.memo, icon = CarIcons.Shield)
         }
-        Text("사고·파손 기록", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val total = stats.selfReported + stats.foundAfterMyDrive
         Text(
-            if (stats.selfReported == 0 && stats.foundAfterMyDrive == 0) {
-                "없음"
-            } else {
-                "직접 신고 ${stats.selfReported}건 · 운전 후 발견 ${stats.foundAfterMyDrive}건"
-            },
+            if (total == 0) "사고·파손 없음" else "사고·파손 ${total}건" + if (stats.open > 0) " · 아직 안 끝난 것 ${stats.open}건" else "",
             style = MaterialTheme.typography.bodyLarge,
+            color = if (stats.open > 0) s.danger.content else MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (stats.open > 0) StatusBadge("처리 완료 전 ${stats.open}건", s.danger)
     }
 }
 

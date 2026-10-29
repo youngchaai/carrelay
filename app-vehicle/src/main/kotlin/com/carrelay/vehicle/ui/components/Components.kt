@@ -256,6 +256,59 @@ fun StatBlock(
     }
 }
 
+/**
+ * 알림 한 줄: 아이콘 + 문장. 배지·작은 라벨 없이 문장으로 말합니다.
+ * [actionLabel] 이 있으면 줄 전체를 누를 수 있고 오른쪽에 할 일을 적습니다.
+ */
+@Composable
+fun NoticeRow(
+    icon: ImageVector,
+    tone: StatusTone,
+    text: String,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+    detail: String? = null,
+    actionLabel: String? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    SurfaceCard(
+        modifier.fillMaxWidth(),
+        container = if (emphasized) tone.container else MaterialTheme.colorScheme.surface,
+        border = if (emphasized) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        contentPadding = 22.dp,
+        onClick = onClick,
+    ) {
+        Row(
+            Modifier.heightIn(min = 68.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            IconCircle(icon, tone, size = 60.dp, iconSize = 32.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = if (emphasized) tone.content else MaterialTheme.colorScheme.onSurface,
+                )
+                if (detail != null) {
+                    Text(
+                        detail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (emphasized) tone.content else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (actionLabel != null) {
+                Text(
+                    "$actionLabel ›",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (emphasized) tone.content else MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
 /** 화면 맨 아래 행동 버튼 줄 */
 @Composable
 fun ActionBar(content: @Composable RowScope.() -> Unit) {

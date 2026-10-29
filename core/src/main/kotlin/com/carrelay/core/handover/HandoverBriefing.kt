@@ -4,6 +4,7 @@ import com.carrelay.core.incident.IncidentLog
 import com.carrelay.core.memo.MemoBoard
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.Incident
+import com.carrelay.core.model.IncidentStatus
 import com.carrelay.core.model.Memo
 import com.carrelay.core.model.Signal
 import com.carrelay.core.model.VehicleSnapshot
@@ -90,7 +91,7 @@ object HandoverBriefingBuilder {
             items += BriefingItem(
                 BriefingItem.Kind.OPEN_INCIDENT,
                 priority = 110,
-                message = "${inc.status.label}: ${inc.summary} (${nameOf(inc.reporterId)} 신고)",
+                message = "${inc.summary}: ${if (inc.status == IncidentStatus.IN_PROGRESS) "수리·보험 처리 중이에요" else "아직 고치지 않았어요"}",
                 fromPerson = true,
                 incidentId = inc.id,
             )
@@ -103,7 +104,7 @@ object HandoverBriefingBuilder {
                 items += BriefingItem(
                     BriefingItem.Kind.NEW_WARNING,
                     priority = 100 + warning.severity,
-                    message = "지난 확인 이후 ${KoreanText.subject(warning.label)} 새로 켜졌어요",
+                    message = "지난번 이후 ${KoreanText.subject(warning.label)} 새로 켜졌어요",
                 )
             } else {
                 items += BriefingItem(
@@ -118,12 +119,12 @@ object HandoverBriefingBuilder {
         val energy = current.energyPercent
         val label = current.energyLabel
         if (energy != null) {
-            val rangeText = current.rangeKm?.let { ", 주행 가능 거리 ${it}km" } ?: ""
+            val rangeText = current.rangeKm?.let { ", ${it}km 갈 수 있어요" } ?: ""
             if (energy <= LOW_ENERGY_PERCENT) {
                 items += BriefingItem(
                     BriefingItem.Kind.ENERGY_LOW,
                     priority = 95,
-                    message = "$label ${energy}%$rangeText. 출발 전 ${if (label == "연료") "주유가" else "충전이"} 필요해요",
+                    message = "$label ${energy}%$rangeText. 출발 전에 ${if (label == "연료") "주유해" else "충전해"} 주세요",
                 )
             }
             val before = lastSeen?.energyPercent
@@ -131,7 +132,7 @@ object HandoverBriefingBuilder {
                 items += BriefingItem(
                     BriefingItem.Kind.ENERGY_CHANGE,
                     priority = 40,
-                    message = "$label: 마지막 확인 때 ${before}% → 지금 ${energy}%",
+                    message = "${KoreanText.subject(label)} 지난번 ${before}%에서 지금 ${energy}%로 ${if (energy > before) "늘었어요" else "줄었어요"}",
                 )
             }
         }
@@ -143,7 +144,7 @@ object HandoverBriefingBuilder {
             items += BriefingItem(
                 BriefingItem.Kind.DISTANCE_SINCE_LAST,
                 priority = 30,
-                message = "마지막 확인 이후 ${KoreanText.distance(odoNow - odoBefore)} 주행했어요",
+                message = "지난번 이후 ${KoreanText.distance(odoNow - odoBefore)} 달렸어요",
             )
         }
 

@@ -137,6 +137,7 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onReplayBriefing = vm::replayBriefing,
             onHandOver = vm::handOver,
             onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
+            onResolveMemo = vm::resolveMemo,
             onUpdateIncident = vm::updateIncidentStatus,
         )
         Screen.MEMO -> MemoScreen(
@@ -197,7 +198,7 @@ private fun TopBar(
             ) {
                 Avatar(d.name, ui.avatarTone(d.id), size = 52.dp)
                 Text(d.name, style = MaterialTheme.typography.titleMedium)
-                if (!ui.sessionConfirmed) StatusBadge("미확인", CarRelayTheme.status.warning)
+                if (!ui.sessionConfirmed) StatusBadge("확인 필요", CarRelayTheme.status.warning)
             }
             if (d.careModeEnabled) StatusBadge("케어 모드", CarRelayTheme.status.memo, icon = CarIcons.Shield)
         }
