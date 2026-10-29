@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
 import com.carrelay.core.model.Gear
+import com.carrelay.vehicle.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,8 +40,11 @@ class AaosCarSignals(private val context: Context) {
             when (value.propertyId) {
                 VehiclePropertyIds.GEAR_SELECTION -> _gear.value = mapGear(value.value as? Int)
                 // VHAL 속도 단위는 m/s
-                VehiclePropertyIds.PERF_VEHICLE_SPEED ->
-                    _speedKmh.value = (value.value as? Float)?.let { abs(it) * 3.6 }
+                VehiclePropertyIds.PERF_VEHICLE_SPEED -> {
+                    val kmh = (value.value as? Float)?.let { abs(it) * 3.6 }
+                    if (BuildConfig.DEBUG) Log.d(TAG, "속도 ${kmh?.let { "%.1f".format(it) }} km/h")
+                    _speedKmh.value = kmh
+                }
             }
         }
 

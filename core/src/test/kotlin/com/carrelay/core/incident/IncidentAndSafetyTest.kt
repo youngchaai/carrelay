@@ -122,6 +122,37 @@ class IncidentAndSafetyTest {
     }
 
     @Test
+    fun `한 번 길게 밟은 급가속은 한 번으로 센다`() {
+        val d = DrivingEventDetector()
+        var t = 0L
+        var v = 0.0
+        var events = 0
+        repeat(40) { // 8초 동안 4 m/s² 로 계속 가속 (Pleos 에뮬레이터에서 가속 페달을 끝까지 밟은 경우)
+            if (d.onSample(DrivingSample(t, Gear.DRIVE, v)) == DrivingEvent.HARSH_ACCEL) events++
+            t += 200
+            v += 2.88
+        }
+        assertEquals(1, events)
+    }
+
+    @Test
+    fun `가속이 잦아든 뒤 다시 급하게 밟으면 다시 센다`() {
+        val d = DrivingEventDetector()
+        var t = 0L
+        var v = 0.0
+        var events = 0
+        fun drive(steps: Int, dv: Double) = repeat(steps) {
+            if (d.onSample(DrivingSample(t, Gear.DRIVE, v)) == DrivingEvent.HARSH_ACCEL) events++
+            t += 200
+            v += dv
+        }
+        drive(10, 2.88) // 급가속
+        drive(20, 0.0) // 정속 4초
+        drive(10, 2.88) // 다시 급가속
+        assertEquals(2, events)
+    }
+
+    @Test
     fun `200ms 간격으로 이어지는 급정거는 한 번으로 센다`() {
         val d = DrivingEventDetector()
         var t = 0L

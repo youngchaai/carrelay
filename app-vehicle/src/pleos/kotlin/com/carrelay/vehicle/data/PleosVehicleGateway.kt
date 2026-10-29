@@ -39,6 +39,7 @@ import com.carrelay.core.model.Signal
 import com.carrelay.core.model.SignalStatus
 import com.carrelay.core.model.VehicleSnapshot
 import com.carrelay.core.model.WarningLight
+import com.carrelay.vehicle.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -95,12 +96,12 @@ class PleosVehicleGateway(private val context: Context) : VehicleGateway {
     // ── 리스너 ─────────────────────────────────────────────
 
     private val gearListener = object : GearSelectionListener {
-        override fun onSelected(gear: VehicleGear?) { pleosGear.value = mapGear(gear) }
+        override fun onSelected(gear: VehicleGear?) { debug("기어 $gear"); pleosGear.value = mapGear(gear) }
         override fun onFailed(e: Exception) = logFail("기어", e)
     }
 
     private val brakeListener = object : BrakePedalStatusListener {
-        override fun onBrakePedalStatusUpdated(pressed: Boolean?) { brakePressed.value = pressed }
+        override fun onBrakePedalStatusUpdated(pressed: Boolean?) { debug("브레이크 페달 $pressed"); brakePressed.value = pressed }
         override fun onFailed(e: Exception) = logFail("브레이크 페달", e)
     }
 
@@ -118,42 +119,43 @@ class PleosVehicleGateway(private val context: Context) : VehicleGateway {
     }
 
     private val fuelListener = object : FuelPercentListener {
-        override fun onFuelPercentUpdated(percent: Int?) { fuelPercent = percent; changed() }
+        override fun onFuelPercentUpdated(percent: Int?) { if (percent != fuelPercent) { fuelPercent = percent; changed() } }
         override fun onFailed(e: Exception) = logFail("연료", e)
     }
 
     private val socListener = object : EvBatteryStateOfChargeListener {
-        override fun onEvBatteryStateOfChargeUpdated(percent: Int?) { socPercent = percent; changed() }
+        override fun onEvBatteryStateOfChargeUpdated(percent: Int?) { if (percent != socPercent) { socPercent = percent; changed() } }
         override fun onFailed(e: Exception) = logFail("배터리", e)
     }
 
     private val rangeListener = object : RangeRemainingListener {
-        override fun onRangeRemainingChanged(range: Float?) { rangeKm = range?.let(::toKm); changed() }
+        override fun onRangeRemainingChanged(range: Float?) { val km = range?.let(::toKm); if (km != rangeKm) { rangeKm = km; changed() } }
         override fun onFailed(e: Exception) = logFail("주행 가능 거리", e)
     }
 
     private val odometerListener = object : DistanceDrivenListener {
-        override fun onDistanceDrivenUpdated(distance: Float?) { odometerKm = distance?.toDouble(); changed() }
+        // 누적 주행거리는 화면에 바로 보이지 않으므로 값만 저장합니다(주행 중 계속 바뀌어 화면을 자주 다시 그리지 않게).
+        override fun onDistanceDrivenUpdated(distance: Float?) { if (distance?.toDouble() != odometerKm) debug("누적 주행거리 $distance"); odometerKm = distance?.toDouble() }
         override fun onFailed(e: Exception) = logFail("누적 주행거리", e)
     }
 
     private val engineOilListener = object : OilLevelStateListener {
-        override fun onOilLevelUpdated(state: OilLevelState?) { engineOilLow = state?.let(::isLow); changed() }
+        override fun onOilLevelUpdated(state: OilLevelState?) { val low = state?.let(::isLow); if (low != engineOilLow) { engineOilLow = low; changed() } }
         override fun onFailed(e: Exception) = logFail("엔진오일", e)
     }
 
     private val brakeFluidListener = object : OilLevelStateListener {
-        override fun onOilLevelUpdated(state: OilLevelState?) { brakeFluidLow = state?.let(::isLow); changed() }
+        override fun onOilLevelUpdated(state: OilLevelState?) { val low = state?.let(::isLow); if (low != brakeFluidLow) { brakeFluidLow = low; changed() } }
         override fun onFailed(e: Exception) = logFail("브레이크액", e)
     }
 
     private val washerListener = object : LowWasherFluidWaringListener {
-        override fun onLowWasherFluidWaringUpdated(low: Boolean?) { washerFluidLow = low; changed() }
+        override fun onLowWasherFluidWaringUpdated(low: Boolean?) { if (low != washerFluidLow) { washerFluidLow = low; changed() } }
         override fun onFailed(e: Exception) = logFail("워셔액", e)
     }
 
     private val telltaleListener = object : TelltaleInfoListener {
-        override fun onTelltaleInfoUpdated(info: Telltales?) { warnings = info?.let(::mapTelltales); changed() }
+        override fun onTelltaleInfoUpdated(info: Telltales?) { val w = info?.let(::mapTelltales); if (w != warnings) { warnings = w; changed() } }
         override fun onFailed(e: Exception) = logFail("경고등", e)
     }
 
@@ -317,6 +319,10 @@ class PleosVehicleGateway(private val context: Context) : VehicleGateway {
                 if (cont.isActive) cont.resume(null)
             }
         }
+    }
+
+    private fun debug(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
     }
 
     private fun logFail(what: String, e: Exception) {

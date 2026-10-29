@@ -25,7 +25,7 @@
 | **F3 메모** | 주차 후 프리셋 버튼으로 메모. **읽음과 해결을 분리**: 읽어도 해결 전까지 모두에게 남음 | ✅ |
 | **F3 인수 점검** | 브리핑 아래 버튼 두 개: **확인했어요** / **이상이 있어요**. 이상을 남기면 직전 운전자와 주차 시각을 함께 기록(원인은 단정하지 않음) | ✅ |
 | **F3 사고·파손 신고** | 두 단계: ① 무슨 일(긁힘·찌그러짐 등) ② **차 그림에서 위치**(모르면 건너뛰기). 처리 필요 → 처리 중(수리·보험 맡김) → 처리 완료(다 고쳤어요). 완료 전까지 모든 운전자 브리핑 맨 위에 표시 | ✅ |
-| **F5 운행 후 이상 확인** | 모든 운전자의 급정거(3.5m/s² 이상)·급가속(3.0m/s² 이상) 횟수를 운전 구간별로 기록. 주차 후 급정거가 있었으면 "차에 이상이 있나요?" | ✅ 가상 차량 · 실차는 속도 신호 검증 후 |
+| **F5 운행 후 이상 확인** | 모든 운전자의 급정거(3.5m/s² 이상)·급가속(3.0m/s² 이상) 횟수를 운전 구간별로 기록. 주차 후 급정거가 있었으면 "차에 이상이 있나요?" | ✅ 가상 차량 · Pleos 에뮬레이터 실제 속도 신호로 검증 (실차는 아직) |
 | **가족 프로필** | 면허 종류·경력, **갱신 D-day**(60일 전부터 표시), 초보 운전(2년 미만), 운전자별 신고·발견 건수. **면허 번호는 저장하지 않음** | ✅ 샘플 데이터 · 입력은 폰 앱(확장) |
 | **F4 교대 감지·안내** | 주차 중 운전석 문 열림→닫힘 시 "운전자 바뀌셨나요?" / 연속 2시간·심야 1시간 휴식·교대 권유 | ✅ |
 | **F4 오늘의 운전자 추천** | 수면 시간 요약(워치→폰 앱)을 비교해 출발 전 추천 | ✅ 샘플 데이터 |
@@ -194,11 +194,12 @@ APK 가 GitHub 파일 용량 제한을 넘으면 [GitHub Releases](../../release
 | 기어 | Gear `registerGearSelection` | ✅ D → 주행 화면, P → "주차하셨네요. 남길 말이 있나요?" |
 | 운전석 문 | Door `registerDoorPosition(DoorArea(ROW_1_LEFT))` | ✅ 열림 → 닫힘 → "운전하는 분이 바뀌었나요?" |
 | 주행 규제 UI | AAOS `CarUxRestrictionsManager` | ✅ D에서 주행 화면. P로 바꾼 뒤 제한이 조금 늦게 풀리는 것을 발견해 처리 |
+| 속도 | AAOS `PERF_VEHICLE_SPEED` (`CAR_SPEED` 권한) | ✅ 콘솔 가속 페달을 누르고 있으면 0 → 108km/h 가 초당 5번 들어옴 |
+| 브레이크 페달 (케어 모드) | Brake `registerBrakePedalStatus` | ✅ 콘솔 브레이크를 밟고 떼면 눌림/뗌이 들어옴 |
+| 누적 주행거리 | Odometer `registerDistanceDriven` | ✅ 콘솔 Odometer 0 → 423,280km 가 그대로 들어옴 (단위 km) |
+| **급정거 → 운행 후 이상 확인** | 위 속도 신호로 계산 | ✅ 96km/h 에서 브레이크를 꾹 밟으면 급정거 1회 → P 에서 "운전 중 급정거가 1번 있었어요. 차에 이상이 있나요?" |
 | 연료 (내연기관차) | Fuel `registerFuelPercent` | 구독 확인 · 에뮬레이터는 전기차라 값 변화는 미확인 |
-| 누적 주행거리 | Odometer `registerDistanceDriven` | 구독 확인 · 값 변화 미확인 |
-| 브레이크 페달 (케어 모드) | Brake `registerBrakePedalStatus` | 구독 확인 · 값 변화 미확인 |
 | 엔진오일·브레이크액·워셔액 | Safety `registerEngineOilLevelState` 등 (`CAR_SAFETY`) | 구독 확인 · 콘솔에 조작 항목 없음 |
-| 속도 | AAOS `PERF_VEHICLE_SPEED` (`CAR_SPEED` 권한) | 코드 연결 · 값 변화 미확인 |
 | 계기판 경고등 (telltale) | Safety `registerTelltales` | ❌ `PRIVATE_CAR_SAFETY` 권한이 필요해 서드파티 앱은 못 받음 → 브리핑에 "경고등 정보: 이 앱에서는 볼 수 없어요"로 알리고, "경고등 없음"이라고 말하지 않음 |
 | 타이어 공기압 값 | Tire `registerTirePressure` | ❌ `PRIVATE_CAR_SAFETY` 필요 → 쓰지 않음 |
 | 쉼터 경유지 · 보호자 위치 · 음성 | NaviHelper · FusedLocation · TextToSpeech SDK | 확장 (현재 시뮬레이션 · Android 기본 TTS) |
@@ -219,7 +220,7 @@ adb install -r app-vehicle/build/outputs/apk/debug/app-vehicle-debug.apk
 adb forward tcp:8088 tcp:8088
 ```
 
-PC 브라우저에서 `http://127.0.0.1:8088/` → **Emulation Controls** → `Energy`(Battery SOC, Remaining Range) / `All domains`(Gear Selection, Door Position)을 바꿉니다. PowerShell 에서는 `-P` 옵션을 따옴표로 감싸야 합니다.
+PC 브라우저에서 `http://127.0.0.1:8088/` → **Emulation Controls** → `Energy`(Battery SOC, Remaining Range) / `Motion`(Gear Selection, Brake Pedal, Odometer) / `All domains`(Door Position)을 바꿉니다. 달리려면 기어 D 에서 첫 화면의 **ACCEL** 을 누르고 있고, 급정거는 **BRAKE** 를 꾹 누릅니다. PowerShell 에서는 `-P` 옵션을 따옴표로 감싸야 합니다.
 
 ## 일정
 

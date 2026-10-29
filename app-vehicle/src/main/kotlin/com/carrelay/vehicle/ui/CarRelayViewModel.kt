@@ -1,5 +1,6 @@
 package com.carrelay.vehicle.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -148,6 +149,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         if (!fromTick) {
             val event = eventDetector.onSample(sample)
             if (event != null) {
+                Log.i(TAG, "${event.label} 감지 (속도 ${sample.speedKmh?.let { "%.0f".format(it) }} km/h)")
                 tracker?.addDrivingEvent(
                     harshDecel = if (event == DrivingEvent.HARSH_DECEL) 1 else 0,
                     harshAccel = if (event == DrivingEvent.HARSH_ACCEL) 1 else 0,
@@ -627,6 +629,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     companion object {
+        private const val TAG = "CarRelayVM"
         private const val MAX_CARE_EVENTS = 500
         private const val MAX_SESSIONS = 300
         private const val MAX_ALERTS = 100
