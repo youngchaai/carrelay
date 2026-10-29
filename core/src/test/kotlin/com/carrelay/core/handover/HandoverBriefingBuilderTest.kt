@@ -120,6 +120,17 @@ class HandoverBriefingBuilderTest {
     }
 
     @Test
+    fun `경고등을 읽을 수 없으면 '경고등 없음'이라고 말하지 않는다`() {
+        val current = VehicleSnapshot(now, evBatteryPercent = 80, unavailable = mapOf(Signal.WARNINGS to SignalStatus.NO_PERMISSION))
+
+        val briefing = build(mom, current, VehicleSnapshot(now - 1000, evBatteryPercent = 81))
+
+        val clear = briefing.items.single { it.kind == BriefingItem.Kind.ALL_CLEAR }
+        assertEquals("배터리 80%, 남은 메모가 없어요", clear.message)
+        assertTrue(briefing.items.any { it.kind == BriefingItem.Kind.SIGNAL_UNAVAILABLE && it.message == "경고등 정보: 이 앱에서는 볼 수 없어요" })
+    }
+
+    @Test
     fun `오래된 차량 값은 경고한다`() {
         val current = VehicleSnapshot(now - 10 * 60_000, fuelPercent = 70)
 

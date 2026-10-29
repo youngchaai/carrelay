@@ -203,8 +203,8 @@ object HandoverBriefingBuilder {
             val energyText = energy?.let { "$label ${it}%, " } ?: ""
             items += BriefingItem(
                 BriefingItem.Kind.ALL_CLEAR,
-                priority = 1,
-                message = "${energyText}새 경고등과 남은 메모가 없어요",
+                priority = 15, // '읽을 수 없는 신호' 안내(10)보다 위에
+                message = "${energyText}${if (Signal.WARNINGS in current.unavailable) "" else "새 경고등과 "}남은 메모가 없어요",
             )
         }
 

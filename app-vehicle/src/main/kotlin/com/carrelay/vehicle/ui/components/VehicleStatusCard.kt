@@ -33,6 +33,8 @@ fun VehicleStatusCard(
     current: VehicleSnapshot,
     modifier: Modifier = Modifier,
     incidents: List<Incident> = emptyList(),
+    /** 차 그림에만 붙일 수식어 (예: 환영 장면에서 이어지는 공유 전환) */
+    carModifier: Modifier = Modifier,
 ) {
     val status = CarRelayTheme.status
     val energy = current.energyPercent
@@ -44,7 +46,7 @@ fun VehicleStatusCard(
     SurfaceCard(modifier) {
         SectionTitle("차 상태")
         CarTopView(
-            modifier = Modifier.weight(1f).aspectRatio(CarTopViewAspect).align(Alignment.CenterHorizontally),
+            modifier = Modifier.weight(1f).aspectRatio(CarTopViewAspect).align(Alignment.CenterHorizontally).then(carModifier),
             marks = incidentMarks(incidents.filter { it.isOpen }),
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gapS)) {

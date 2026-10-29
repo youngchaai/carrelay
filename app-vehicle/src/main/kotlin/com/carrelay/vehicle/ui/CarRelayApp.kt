@@ -129,6 +129,7 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onReplay = vm::replayBriefing,
             onReportIssue = { vm.startReport(IncidentSource.AT_PICKUP) },
             onUpdateIncident = vm::updateIncidentStatus,
+            onGreetingDone = vm::greetingDone,
         )
         Screen.HOME -> HomeScreen(
             ui = ui,

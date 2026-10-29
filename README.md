@@ -21,7 +21,7 @@
 | 기능 | 내용 | 상태 |
 |---|---|---|
 | **F2 운전자 선택** | 기어 P에서 프로필 터치 한 번. 선택 없이 출발하면 직전 운전자로 자동 지정하되 **미확인**으로 기록 | ✅ 가상 차량에서 동작 |
-| **F3 인수인계 브리핑** | 지난번과 달라진 점(연료 변화·새 경고등·남은 메모·사고·파손)을 중요한 순서대로 **한 줄 문장**으로 화면+음성 안내. 왼쪽에는 차 그림과 숫자 두 개(연료, 갈 수 있는 거리)만 | ✅ |
+| **F3 인수인계 브리핑** | 지난번과 달라진 점(연료 변화·새 경고등·남은 메모·사고·파손)을 중요한 순서대로 **한 줄 문장**으로 화면+음성 안내. 왼쪽에는 차 그림과 숫자 두 개(연료, 갈 수 있는 거리)만. 새 운전자가 타면 먼저 **환영 장면**(그 사람 색 · 인사 · 확인할 것 개수)을 2초 남짓 보여 주고, 차 그림이 브리핑 자리로 이어집니다 | ✅ |
 | **F3 메모** | 주차 후 프리셋 버튼으로 메모. **읽음과 해결을 분리**: 읽어도 해결 전까지 모두에게 남음 | ✅ |
 | **F3 인수 점검** | 브리핑 아래 버튼 두 개: **확인했어요** / **이상이 있어요**. 이상을 남기면 직전 운전자와 주차 시각을 함께 기록(원인은 단정하지 않음) | ✅ |
 | **F3 사고·파손 신고** | 두 단계: ① 무슨 일(긁힘·찌그러짐 등) ② **차 그림에서 위치**(모르면 건너뛰기). 처리 필요 → 처리 중(수리·보험 맡김) → 처리 완료(다 고쳤어요). 완료 전까지 모든 운전자 브리핑 맨 위에 표시 | ✅ |
@@ -183,23 +183,43 @@ adb install apk/팀명_CarRelay_release.apk
 
 APK 가 GitHub 파일 용량 제한을 넘으면 [GitHub Releases](../../releases) 에 올리고 여기에 링크를 남깁니다.
 
-## Pleos SDK 사용 계획
+## Pleos SDK 연동 (2026-10-29 에뮬레이터에서 검증)
 
-| 용도 | API | 상태 |
+`carrelay.pleosSdk=true` 빌드를 **Pleos Connect Emulator v2.1.0** 에 설치하고, **Pleos Connect Virtual Console** 로 차량 값을 바꿔 앱이 반응하는지 확인했습니다. 함수 이름은 SDK 아카이브(`Vehicle-2.3.2.aar`)의 실제 클래스에서 확인했습니다.
+
+| 신호 | API (Vehicle SDK 2.3.2) | 상태 |
 |---|---|---|
-| 주행·정차 판단 | AAOS `CarPropertyManager` GEAR_SELECTION, PERF_VEHICLE_SPEED | 코드 작성됨 · 에뮬레이터 검증 전 |
-| 주행 규제 UI | AAOS `CarUxRestrictionsManager` | 코드 작성됨 · 검증 전 |
-| 교대 감지 | Vehicle SDK Door `registerDoorPosition` (CAR_DOORS) | 코드 작성됨 · 검증 전 |
-| 연료·배터리 | Vehicle SDK Fuel / EvBattery (CAR_ENERGY) | 함수명 확인 후 연결 |
-| 경고등·소모품 | Vehicle SDK Safety / Tire (CAR_SAFETY) | 함수명 확인 후 연결 |
-| 운전자별 거리·연속 주행 | Vehicle SDK Odometer (CAR_DRIVE) | 함수명 확인 후 연결 (현재는 앱 자체 시계) |
-| 케어 모드 무조작 판단 | Vehicle SDK Brake (CAR_DRIVE) | 함수명 확인 후 연결 |
-| 급정거·급가속 횟수 | AAOS PERF_VEHICLE_SPEED 속도 변화로 계산 (가속도 센서 대신) | 가상 차량에서 동작 · 실차 검증 전 |
-| 쉼터·휴게소 경유지 | NaviHelper SDK | 확장 (현재 시뮬레이션) |
-| 보호자 알림의 현재 위치 (케어 모드 3단계에서만) | FusedLocation SDK | 확장 (현재 시뮬레이션) |
-| 음성 안내 | TextToSpeech SDK (신청) → 미승인 시 Android 기본 TTS | Android TTS 사용 중 |
+| 배터리 잔량 | EvBattery `registerEvBatteryStateOfCharge` | ✅ 콘솔에서 64% → 12% 로 바꾸면 홈 화면이 바로 바뀜 |
+| 주행 가능 거리 | Odometer `registerRangeRemainingListener` | ✅ 423km → 61km (Pleos 계기판과 같은 값) |
+| 기어 | Gear `registerGearSelection` | ✅ D → 주행 화면, P → "주차하셨네요. 남길 말이 있나요?" |
+| 운전석 문 | Door `registerDoorPosition(DoorArea(ROW_1_LEFT))` | ✅ 열림 → 닫힘 → "운전하는 분이 바뀌었나요?" |
+| 주행 규제 UI | AAOS `CarUxRestrictionsManager` | ✅ D에서 주행 화면. P로 바꾼 뒤 제한이 조금 늦게 풀리는 것을 발견해 처리 |
+| 연료 (내연기관차) | Fuel `registerFuelPercent` | 구독 확인 · 에뮬레이터는 전기차라 값 변화는 미확인 |
+| 누적 주행거리 | Odometer `registerDistanceDriven` | 구독 확인 · 값 변화 미확인 |
+| 브레이크 페달 (케어 모드) | Brake `registerBrakePedalStatus` | 구독 확인 · 값 변화 미확인 |
+| 엔진오일·브레이크액·워셔액 | Safety `registerEngineOilLevelState` 등 (`CAR_SAFETY`) | 구독 확인 · 콘솔에 조작 항목 없음 |
+| 속도 | AAOS `PERF_VEHICLE_SPEED` (`CAR_SPEED` 권한) | 코드 연결 · 값 변화 미확인 |
+| 계기판 경고등 (telltale) | Safety `registerTelltales` | ❌ `PRIVATE_CAR_SAFETY` 권한이 필요해 서드파티 앱은 못 받음 → 브리핑에 "경고등 정보: 이 앱에서는 볼 수 없어요"로 알리고, "경고등 없음"이라고 말하지 않음 |
+| 타이어 공기압 값 | Tire `registerTirePressure` | ❌ `PRIVATE_CAR_SAFETY` 필요 → 쓰지 않음 |
+| 쉼터 경유지 · 보호자 위치 · 음성 | NaviHelper · FusedLocation · TextToSpeech SDK | 확장 (현재 시뮬레이션 · Android 기본 TTS) |
 
-모든 Vehicle SDK 호출은 `checkXxxCapabilities` 로 지원 여부를 먼저 확인하고, 미지원이면 브리핑에 "지원하지 않아요"로 표시합니다.
+값을 바꾸면 SDK 리스너가 알려 주고, 앱은 주기 갱신을 기다리지 않고 곧바로 다시 읽어 화면에 반영합니다.
+
+### Pleos 빌드로 실행하기 (Virtual Console)
+
+```bash
+gradlew.bat :app-vehicle:assembleDebug "-Pcarrelay.pleosSdk=true"
+```
+
+```bash
+adb install -r app-vehicle/build/outputs/apk/debug/app-vehicle-debug.apk
+```
+
+```bash
+adb forward tcp:8088 tcp:8088
+```
+
+PC 브라우저에서 `http://127.0.0.1:8088/` → **Emulation Controls** → `Energy`(Battery SOC, Remaining Range) / `All domains`(Gear Selection, Door Position)을 바꿉니다. PowerShell 에서는 `-P` 옵션을 따옴표로 감싸야 합니다.
 
 ## 일정
 

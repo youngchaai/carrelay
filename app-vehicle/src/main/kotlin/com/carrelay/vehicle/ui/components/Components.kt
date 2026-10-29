@@ -163,9 +163,9 @@ fun IconCircle(icon: ImageVector, tone: StatusTone, size: Dp = 64.dp, iconSize: 
 
 /** 운전자 머리글자 아바타 */
 @Composable
-fun Avatar(name: String, tone: StatusTone, size: Dp = 72.dp) {
+fun Avatar(name: String, tone: StatusTone, size: Dp = 72.dp, modifier: Modifier = Modifier) {
     Box(
-        Modifier.size(size).clip(CircleShape).background(tone.container),
+        modifier.size(size).clip(CircleShape).background(tone.container),
         contentAlignment = Alignment.Center,
     ) {
         Text(

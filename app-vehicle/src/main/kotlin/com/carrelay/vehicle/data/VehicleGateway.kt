@@ -5,6 +5,7 @@ import com.carrelay.core.model.DrivingSample
 import com.carrelay.core.model.VehicleSnapshot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * 앱이 차량 데이터를 받는 유일한 통로.
@@ -33,6 +34,12 @@ interface VehicleGateway {
      * 지원하지 않거나 읽지 못한 항목은 값 대신 [VehicleSnapshot.unavailable] 에 이유를 넣습니다.
      */
     suspend fun readStatus(): VehicleSnapshot
+
+    /**
+     * 연료·배터리·경고등처럼 [readStatus] 로 읽는 값이 바뀌었다는 알림.
+     * 받으면 앱이 곧바로 다시 읽어 화면을 고칩니다(주기 갱신을 기다리지 않음).
+     */
+    val statusChanges: Flow<Unit> get() = emptyFlow()
 
     fun start()
     fun stop()

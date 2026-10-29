@@ -46,6 +46,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -98,6 +99,13 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
         viewModelScope.launch { gateway.driving.collect { onDrivingSample(it) } }
         viewModelScope.launch { gateway.driverDoorEvents.collect { onDoor(it) } }
+        // 연료·배터리·경고등이 바뀌면 곧바로 다시 읽습니다(연달아 오면 마지막 것만).
+        viewModelScope.launch {
+            gateway.statusChanges.collectLatest {
+                delay(300)
+                refreshSnapshot()
+            }
+        }
         viewModelScope.launch { container.uxMonitor.requiresDistractionOptimization.collect { updateDrivingUi() } }
         viewModelScope.launch {
             var seconds = 0
@@ -119,6 +127,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             val previous = lastGear
             lastGear = sample.gear
             handleSessionEffects(t.onGear(sample.gear, now(), _ui.value.snapshot?.odometerKm))
+            if (sample.gear.isDriveGear) _ui.update { it.copy(parkedPrompt = false) }
             if (sample.gear == Gear.PARK && previous.isDriveGear) onParked()
         }
         feedRealtime(sample, fromTick = false)
@@ -166,7 +175,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         _ui.update { s ->
             val screen = when {
                 restricted -> Screen.DRIVING
-                s.screen == Screen.DRIVING -> Screen.HOME
+                // 실차는 기어를 P로 바꾼 뒤 주행 제한이 조금 늦게 풀립니다. 그 사이 띄운 '주차 후 메모'를 잃지 않게 합니다.
+                s.screen == Screen.DRIVING -> if (s.parkedPrompt) Screen.MEMO else Screen.HOME
                 else -> s.screen
             }
             s.copy(drivingUi = restricted, screen = screen)
@@ -257,7 +267,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                 is SessionEffect.ShowBriefing -> {
                     resetRealtimeMonitors()
                     foundIncidentThisBriefing = false
-                    viewModelScope.launch { showBriefing(effect.driverId) }
+                    viewModelScope.launch { showBriefing(effect.driverId, greet = true) }
                 }
                 is SessionEffect.AutoAssigned -> {
                     resetRealtimeMonitors()
@@ -287,7 +297,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         persist()
     }
 
-    private suspend fun showBriefing(driverId: String) {
+    private suspend fun showBriefing(driverId: String, greet: Boolean = false) {
         val driver = driverById(driverId)
         val snap = refreshSnapshot()
         val briefing = HandoverBriefingBuilder.build(
@@ -299,7 +309,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             nowMillis = now(),
             incidents = data.incidents,
         )
-        _ui.update { it.copy(screen = Screen.BRIEFING, briefing = briefing, askingDriverChange = false) }
+        _ui.update { it.copy(screen = Screen.BRIEFING, briefing = briefing, askingDriverChange = false, greeting = greet) }
         updateDrivingUi()
         speaker.speak(briefing.speech)
     }
@@ -332,6 +342,11 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** 재확인 화면의 '그대로 운전해요' */
+    /** 환영 장면이 끝났거나 눌러서 넘김 */
+    fun greetingDone() {
+        _ui.update { it.copy(greeting = false) }
+    }
+
     fun keepSameDriver() {
         val id = tracker?.currentSession?.driverId ?: return
         selectDriver(id)

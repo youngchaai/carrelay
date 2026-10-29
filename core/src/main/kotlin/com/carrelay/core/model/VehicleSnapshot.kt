@@ -17,7 +17,7 @@ enum class Signal(val label: String) {
 enum class SignalStatus(val label: String) {
     UNSUPPORTED("이 차량은 지원하지 않아요"),
     FAILED("값을 읽지 못했어요"),
-    NO_PERMISSION("권한이 없어요"),
+    NO_PERMISSION("이 앱에서는 볼 수 없어요"),
 }
 
 /** 브리핑에 표시하는 경고등·소모품 경고. */

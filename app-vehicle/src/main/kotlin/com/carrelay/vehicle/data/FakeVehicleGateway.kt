@@ -64,6 +64,9 @@ class FakeVehicleGateway(
     override val driving: StateFlow<DrivingSample> = _driving.asStateFlow()
 
     private val _door = MutableSharedFlow<DoorEvent>(extraBufferCapacity = 8)
+
+    private val _status = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val statusChanges: Flow<Unit> = _status.asSharedFlow()
     override val driverDoorEvents: Flow<DoorEvent> = _door.asSharedFlow()
 
     private var scope: CoroutineScope? = null
@@ -100,12 +103,13 @@ class FakeVehicleGateway(
         update { it.copy(brakePressed = !it.brakePressed) }
     }
 
-    fun setFuel(percent: Int) = update { it.copy(fuelPercent = percent.coerceIn(0, 100)) }
+    fun setFuel(percent: Int) { update { it.copy(fuelPercent = percent.coerceIn(0, 100)) }; _status.tryEmit(Unit) }
 
-    fun setEnergySupported(supported: Boolean) = update { it.copy(energySupported = supported) }
+    fun setEnergySupported(supported: Boolean) { update { it.copy(energySupported = supported) }; _status.tryEmit(Unit) }
 
-    fun toggleWarning(warning: WarningLight) = update { c ->
-        c.copy(warnings = if (warning in c.warnings) c.warnings - warning else c.warnings + warning)
+    fun toggleWarning(warning: WarningLight) {
+        update { c -> c.copy(warnings = if (warning in c.warnings) c.warnings - warning else c.warnings + warning) }
+        _status.tryEmit(Unit)
     }
 
     /** 운전석 문을 열었다 닫습니다(교대 감지 시연). */

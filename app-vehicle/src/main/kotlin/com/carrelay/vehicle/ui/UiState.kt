@@ -67,6 +67,8 @@ data class UiState(
     val afterDriveChecked: Boolean = false,
 
     val briefing: Briefing? = null,
+    /** 새 운전자가 막 탔을 때 브리핑 앞에 잠깐 보여 주는 환영 장면 */
+    val greeting: Boolean = false,
     val snapshot: VehicleSnapshot? = null,
     val driving: DrivingSample? = null,
     /** 주행 규제 UI(음성 + 큰 버튼)를 써야 하는지 */
