@@ -1,6 +1,11 @@
 package com.carrelay.vehicle
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,6 +31,16 @@ class MainActivity : ComponentActivity() {
             viewModel.onPermissionsChanged()
         }
 
+    /**
+     * 개발용(디버그 빌드만): 시연 영상 녹화 때 연속 주행 시간을 앞당깁니다. Pleos 빌드에는 가상 차량 패널이 없어서 둡니다.
+     *   adb shell am broadcast --user 10 -p com.carrelay.vehicle -a com.carrelay.vehicle.DEBUG_ADD_DRIVING --ei minutes 120
+     */
+    private val debugReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            viewModel.debugAddDrivingTime(intent.getIntExtra("minutes", 30))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge() // targetSdk 35: 화면 여백은 CarRelayApp 의 safeDrawingPadding 으로 처리
@@ -34,6 +49,9 @@ class MainActivity : ComponentActivity() {
                 .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
             if (missing.isNotEmpty()) runtimePermissions.launch(missing.toTypedArray())
         }
+        if (BuildConfig.DEBUG) {
+            ContextCompat.registerReceiver(this, debugReceiver, IntentFilter(ACTION_DEBUG_ADD_DRIVING), ContextCompat.RECEIVER_EXPORTED)
+        }
         setContent {
             CarRelayTheme {
                 CarRelayApp(viewModel)
@@ -41,7 +59,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        if (BuildConfig.DEBUG) unregisterReceiver(debugReceiver)
+        super.onDestroy()
+    }
+
     private companion object {
         const val PERMISSION_LOCATION = "pleos.car.permission.FUSED_LOCATION"
+        const val ACTION_DEBUG_ADD_DRIVING = "com.carrelay.vehicle.DEBUG_ADD_DRIVING"
     }
 }
