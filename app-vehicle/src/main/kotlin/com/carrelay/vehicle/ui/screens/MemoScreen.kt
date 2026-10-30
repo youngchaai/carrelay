@@ -66,7 +66,8 @@ fun MemoScreen(
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
         ScreenHeader(
             title = if (ui.parkedPrompt) "주차하셨네요. 남길 말이 있나요?" else "다음 운전자에게 남길 말",
-            subtitle = "누르면 바로 저장돼요. 말로 해도 돼요: \"다음 사람한테 주유하라고 전해 줘\"",
+            // 예시 문장은 중간에서 끊기지 않게 붙는 띄어쓰기( )로 묶습니다.
+            subtitle = "누르면 바로 저장돼요. 말로 해도 돼요: " + "\"다음 사람한테 주유하라고 전해 줘\"".replace(' ', ' '),
         ) {
             // 말로 남기기: 키보드 없이 하고 싶은 말을 그대로 (Pleos 음성 인식)
             PrimaryButton("말로 남기기", onVoice, icon = CarIcons.Mic, height = 104.dp)

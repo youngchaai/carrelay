@@ -17,6 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.carrelay.vehicle.R
@@ -149,7 +150,15 @@ private fun style(size: Int, line: Int, weight: FontWeight = FontWeight.Normal, 
         // 큰 수치는 숫자 폭을 고정(tnum)해 값이 바뀔 때 글자가 흔들리지 않게 합니다.
         fontFeatureSettings = if (numbers) "tnum" else null,
         letterSpacing = if (size >= 44) (-0.5).sp else 0.sp,
+        // 한국어를 글자 단위가 아니라 어절(띄어쓰기) 단위로 줄바꿈합니다("주세\n요" 방지, Android 13+).
+        lineBreak = KoreanLineBreak,
     )
+
+private val KoreanLineBreak = LineBreak(
+    strategy = LineBreak.Strategy.HighQuality,
+    strictness = LineBreak.Strictness.Normal,
+    wordBreak = LineBreak.WordBreak.Phrase,
+)
 
 /** 160dpi 차량 화면용 글자 크기 (sp = px) */
 private val CarTypography = Typography(

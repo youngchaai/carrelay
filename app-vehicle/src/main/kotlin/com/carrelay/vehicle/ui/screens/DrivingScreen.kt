@@ -207,7 +207,7 @@ private fun CareCheckIn(ui: UiState, reason: CareReason, onAnswer: () -> Unit) {
     when (ui.careStage) {
         CareModeMonitor.Stage.WAYPOINT_ADDED -> {
             IconCircle(CarIcons.Rest, status.warning, size = 120.dp, iconSize = 64.dp)
-            Text("가까운 졸음쉼터를\n경유지로 추가했어요", style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center)
+            Text("가까운 졸음쉼터로\n안내를 시작했어요", style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center)
             Text("괜찮으시면 아래 버튼을 눌러 주세요", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         CareModeMonitor.Stage.GUARDIAN_NOTIFIED -> {

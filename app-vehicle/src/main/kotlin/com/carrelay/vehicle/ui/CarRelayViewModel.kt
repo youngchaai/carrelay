@@ -248,7 +248,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                     val r = container.navigator.addNearestRestStop()
                     toast(r.message)
                     speaker.speak(
-                        if (r.added && r.stopName != null) "응답이 없어 ${KoreanText.obj(r.stopName)} 경유지로 추가했어요. 잠시 쉬어 가세요."
+                        if (r.added && r.stopName != null) "응답이 없어 ${KoreanText.toward(r.stopName)} 안내할게요. 잠시 쉬어 가세요."
                         else r.message,
                     )
                 }
@@ -564,7 +564,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now(), data.incidents)
             _ui.update { it.copy(briefing = rebuilt) }
         }
-        toast(if (status == IncidentStatus.RESOLVED) "처리 완료로 바꿨어요" else "'${status.label}'(으)로 바꿨어요")
+        toast(if (status == IncidentStatus.RESOLVED) "처리 완료로 바꿨어요" else "${KoreanText.toward(status.label)} 바꿨어요")
         publishData()
         persist()
     }
@@ -593,7 +593,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val r = container.navigator.addNearestRestStop()
             toast(r.message)
-            speaker.speak(if (r.added && r.stopName != null) "${KoreanText.obj(r.stopName)} 경유지로 추가했어요." else r.message)
+            speaker.speak(if (r.added && r.stopName != null) "${KoreanText.toward(r.stopName)} 안내할게요." else r.message)
         }
     }
 

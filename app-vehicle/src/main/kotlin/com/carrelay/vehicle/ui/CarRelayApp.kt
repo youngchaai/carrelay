@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.carrelay.core.model.IncidentSource
 import com.carrelay.vehicle.ui.components.Avatar
+import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.QuietButton
 import com.carrelay.vehicle.ui.components.StatusBadge
 import com.carrelay.vehicle.ui.components.VoiceMemoOverlay
@@ -211,14 +213,17 @@ private fun TopBar(
     onToggleConsole: () -> Unit,
     onNavigate: (Screen) -> Unit,
 ) {
+    // 큰 글씨 + 가상 차량 콘솔처럼 폭이 좁으면 앱 이름을 접고 케어 모드 표시를 아이콘만 남겨 메뉴가 잘리지 않게 합니다.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val compact = maxWidth < 1280.dp
     Row(
         Modifier.fillMaxWidth().heightIn(min = 104.dp).padding(horizontal = Dimens.page, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(CarIcons.Handover, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
-            Text("카릴레이", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+            Icon(CarIcons.Handover, contentDescription = "카릴레이", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+            if (!compact) Text("카릴레이", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
         }
         ui.currentDriver?.let { d ->
             Row(
@@ -233,22 +238,26 @@ private fun TopBar(
                 Text(d.name, style = MaterialTheme.typography.titleMedium)
                 if (!ui.sessionConfirmed) StatusBadge("확인 필요", CarRelayTheme.status.warning)
             }
-            if (d.careModeEnabled) StatusBadge("케어 모드", CarRelayTheme.status.memo, icon = CarIcons.Shield)
+            if (d.careModeEnabled) {
+                if (compact) IconCircle(CarIcons.Shield, CarRelayTheme.status.memo, size = 44.dp, iconSize = 26.dp)
+                else StatusBadge("케어 모드", CarRelayTheme.status.memo, icon = CarIcons.Shield)
+            }
         }
         Spacer(Modifier.weight(1f))
         if (!ui.drivingUi) {
-            NavItem("홈", CarIcons.Home, selected = ui.screen == Screen.HOME) { onNavigate(Screen.HOME) }
-            NavItem("기록", CarIcons.Records, selected = ui.screen == Screen.RECORDS) { onNavigate(Screen.RECORDS) }
-            NavItem("설정", CarIcons.Settings, selected = ui.screen == Screen.SETTINGS) { onNavigate(Screen.SETTINGS) }
+            NavItem("홈", CarIcons.Home, selected = ui.screen == Screen.HOME, compact) { onNavigate(Screen.HOME) }
+            NavItem("기록", CarIcons.Records, selected = ui.screen == Screen.RECORDS, compact) { onNavigate(Screen.RECORDS) }
+            NavItem("설정", CarIcons.Settings, selected = ui.screen == Screen.SETTINGS, compact) { onNavigate(Screen.SETTINGS) }
         }
         if (consoleAvailable) {
             QuietButton(if (consoleOpen) "콘솔 닫기" else "가상 차량", onToggleConsole, icon = CarIcons.Car)
         }
     }
+    }
 }
 
 @Composable
-private fun NavItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+private fun NavItem(label: String, icon: ImageVector, selected: Boolean, compact: Boolean = false, onClick: () -> Unit) {
     val content = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         Modifier
@@ -256,7 +265,7 @@ private fun NavItem(label: String, icon: ImageVector, selected: Boolean, onClick
             .clip(RoundedCornerShape(20.dp))
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background)
             .clickable(role = Role.Tab, onClick = onClick)
-            .padding(horizontal = 22.dp),
+            .padding(horizontal = if (compact) 14.dp else 22.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
