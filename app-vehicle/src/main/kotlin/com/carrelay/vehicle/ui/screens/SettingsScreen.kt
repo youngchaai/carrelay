@@ -32,11 +32,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.carrelay.core.incident.IncidentLog
+import com.carrelay.core.model.CarUsage
 import com.carrelay.core.model.Driver
 import com.carrelay.core.profile.LicenseState
 import com.carrelay.vehicle.BuildConfig
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.avatarTone
+import com.carrelay.vehicle.ui.components.PrimaryButton
+import com.carrelay.vehicle.ui.isCompany
 import com.carrelay.vehicle.ui.components.Avatar
 import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.ScreenHeader
@@ -58,19 +61,21 @@ fun SettingsScreen(
     onDemoFast: (Boolean) -> Unit,
     onVoice: (Boolean) -> Unit,
     onReset: () -> Unit,
+    onUsage: (CarUsage) -> Unit = {},
 ) {
     var consentFor by remember { mutableStateOf<Driver?>(null) }
     var confirmReset by remember { mutableStateOf(false) }
+    var usageTo by remember { mutableStateOf<CarUsage?>(null) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Dimens.gap),
     ) {
-        ScreenHeader("설정", "${ui.vehicleName} · 파티 ${ui.drivers.size}명")
+        ScreenHeader("설정", "${ui.vehicleName} · ${ui.usage.label} · ${if (ui.isCompany) "직원" else "파티"} ${ui.drivers.size}명")
 
-        // 가족 프로필: 면허 종류·갱신·경력, 사고·파손 기록
+        // 가족(직원) 프로필: 면허 종류·갱신·경력, 사고·파손 기록
         SurfaceCard(Modifier.fillMaxWidth()) {
-            SectionTitle("가족 프로필") {
+            SectionTitle(if (ui.isCompany) "직원 프로필" else "가족 프로필") {
                 StatusBadge("면허 번호는 저장하지 않아요", neutralTone(), icon = CarIcons.Shield)
             }
             // 두 명씩 두 줄: 한 칸이 넓어야 글자가 중간에서 끊기지 않습니다.
@@ -81,15 +86,18 @@ fun SettingsScreen(
                 }
             }
             Text(
-                "면허 정보는 각자 폰 앱에서 본인이 입력해요. 컨디션은 워치 수면 요약을 바탕으로 한 참고 정보이고, 가족에게는 3단계(좋음·보통·휴식 필요)만 보여요.",
+                if (ui.isCompany) "면허 정보는 각자 폰 앱에서 본인이 입력해요. 관리자는 면허 갱신이 가까운 직원만 알 수 있어요."
+                else "면허 정보는 각자 폰 앱에서 본인이 입력해요. 컨디션은 워치 수면 요약을 바탕으로 한 참고 정보이고, 가족에게는 3단계(좋음·보통·휴식 필요)만 보여요.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        // 왼쪽: 가족별 케어 모드 / 오른쪽: 안내·시연·정보. 한 화면에 모두 보이게 2열로 둡니다.
+        // 왼쪽: 가족별 케어 모드(회사 차는 회사 차 안내) / 오른쪽: 차량 용도·안내·시연·정보. 한 화면에 모두 보이게 2열로 둡니다.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gap)) {
-        SurfaceCard(Modifier.weight(1.15f)) {
+        if (ui.isCompany) {
+            CompanyModeCard(Modifier.weight(1.15f))
+        } else SurfaceCard(Modifier.weight(1.15f)) {
             SectionTitle("케어 모드")
             Text(
                 "운전자 본인의 동의로만 켜고 끌 수 있어요. 보호자에게는 하루 요약만 보내고, 위치는 안부 확인에 계속 응답이 없을 때만 보내요.",
@@ -112,6 +120,26 @@ fun SettingsScreen(
         }
 
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
+            SurfaceCard {
+                SectionTitle("차량 용도")
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.gapS)) {
+                    CarUsage.entries.forEach { u ->
+                        val selected = ui.usage == u
+                        val icon = if (u == CarUsage.COMPANY) CarIcons.Route else CarIcons.Home
+                        if (selected) {
+                            PrimaryButton(u.label, {}, Modifier.weight(1f), height = 88.dp, icon = icon)
+                        } else {
+                            SecondaryButton(u.label, { usageTo = u }, Modifier.weight(1f), height = 88.dp, icon = icon)
+                        }
+                    }
+                }
+                Text(
+                    if (ui.isCompany) "회사 차: 운행 목적을 받아 운행기록부를 자동으로 적어요"
+                    else "가족 차: 케어 모드와 컨디션 추천을 써요",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             SurfaceCard {
                 SectionTitle("안내")
                 SettingRow(
@@ -169,6 +197,33 @@ fun SettingsScreen(
         )
     }
 
+    usageTo?.let { u ->
+        AlertDialog(
+            onDismissRequest = { usageTo = null },
+            title = { Text("${u.label}로 바꿀까요?", style = MaterialTheme.typography.headlineSmall) },
+            text = {
+                Text(
+                    if (u == CarUsage.COMPANY) {
+                        "함께 쓰는 사람이 직원으로 바뀌어요(시연용 직원 4명).\n\n" +
+                            "• 출발 전에 운행 목적(출퇴근·일반 업무·개인 용무)을 한 번 눌러요\n" +
+                            "• 운행기록부가 계기판 거리로 자동으로 채워져요\n" +
+                            "• 케어 모드·컨디션 추천은 쓰지 않아요\n\n지금 기록은 지워져요."
+                    } else {
+                        "함께 쓰는 사람이 가족으로 바뀌어요(시연용 가족 4명). 지금 기록은 지워져요."
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUsage(u)
+                    usageTo = null
+                }) { Text("바꾸기", style = MaterialTheme.typography.labelLarge) }
+            },
+            dismissButton = { TextButton(onClick = { usageTo = null }) { Text("취소", style = MaterialTheme.typography.labelLarge) } },
+        )
+    }
+
     if (confirmReset) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
@@ -185,6 +240,30 @@ fun SettingsScreen(
     }
 }
 
+/** 회사 차에서는 케어 모드 대신: 회사 차에서 달라지는 점 */
+@Composable
+private fun CompanyModeCard(modifier: Modifier) {
+    val s = CarRelayTheme.status
+    SurfaceCard(modifier) {
+        SectionTitle("회사 차에서는")
+        listOf(
+            Triple(CarIcons.Route, s.info, "출발 전에 운행 목적을 한 번 눌러요. 출퇴근 · 일반 업무 · 개인 용무"),
+            Triple(CarIcons.Records, s.ok, "운행기록부가 자동으로 채워져요. 사용자·주행 전후 계기판 거리·업무용 거리"),
+            Triple(CarIcons.Warning, s.warning, "사고·파손 신고는 관리자에게 보고되고, 처리될 때까지 모든 직원에게 보여요"),
+            Triple(CarIcons.Shield, s.memo, "케어 모드와 컨디션 추천은 쓰지 않아요. 직원 감시로 오해되지 않게요"),
+        ).forEach { (icon, tone, text) ->
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 88.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                IconCircle(icon, tone, size = 56.dp, iconSize = 30.dp)
+                Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText: (Boolean) -> Unit) {
@@ -198,6 +277,7 @@ private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText:
                 Text(d.name, style = MaterialTheme.typography.titleLarge)
                 Text(
                     buildString {
+                        d.department?.let { append(it).append(" · ") }
                         append(d.licenseClass?.label ?: "면허 정보 없음")
                         license?.yearsLicensed?.let { y -> append(if (y <= 0) " · 운전 1년 미만" else " · 운전 ${y}년") }
                     },

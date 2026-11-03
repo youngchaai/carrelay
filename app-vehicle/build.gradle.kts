@@ -31,8 +31,8 @@ android {
         applicationId = "com.carrelay.vehicle"
         minSdk = 28 // Pleos Playground 배포 조건 (서명 키 교체 지원)
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0" // 공모전 제출판
+        versionCode = 2
+        versionName = "1.1.0" // 공모전 제출판 (1.1: 회사 차 모드·운행기록부)
         // 상수로 두면 Kotlin 이 값을 코드에 복사해, 빌드 옵션을 바꿔도 증분 빌드에서 옛 값이 남을 수 있습니다.
         // 메서드 호출로 초기화해 상수가 아니게 합니다.
         buildConfigField("boolean", "USE_PLEOS_SDK", "Boolean.parseBoolean(\"$usePleosSdk\")")

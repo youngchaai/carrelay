@@ -45,6 +45,8 @@ data class DriveSession(
     /** 이 구간의 급정거·급가속 횟수 (운전자별 안전 기록) */
     val harshDecelCount: Int = 0,
     val harshAccelCount: Int = 0,
+    /** 회사 차: 출발 전에 고른 운행 목적 (운행기록부용). 고르지 않았으면 null */
+    val purpose: TripPurpose? = null,
 ) {
     val distanceKm: Double?
         get() = if (startOdometerKm != null && endOdometerKm != null) {

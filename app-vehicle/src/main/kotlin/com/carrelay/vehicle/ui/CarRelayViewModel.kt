@@ -18,7 +18,9 @@ import com.carrelay.core.handover.HandoverBriefingBuilder
 import com.carrelay.core.incident.IncidentLog
 import com.carrelay.core.memo.MemoBoard
 import com.carrelay.core.memo.VoiceMemoParser
+import com.carrelay.core.model.CarUsage
 import com.carrelay.core.model.CarZone
+import com.carrelay.core.model.TripPurpose
 import com.carrelay.core.model.DoorEvent
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.IncidentSource
@@ -366,10 +368,17 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         selectDriver(id)
     }
 
-    /** 브리핑 '확인했어요': 보여 준 메모를 읽음 처리하고, 이 시점을 '마지막 확인'으로 저장합니다. */
-    fun acknowledgeBriefing() {
+    /**
+     * 브리핑 '확인했어요': 보여 준 메모를 읽음 처리하고, 이 시점을 '마지막 확인'으로 저장합니다.
+     * 회사 차는 이때 고른 운행 목적을 이번 운전 구간에 적습니다(운행기록부).
+     */
+    fun acknowledgeBriefing(purpose: TripPurpose? = null) {
         val briefing = _ui.value.briefing ?: return
         val driverId = briefing.driver.id
+        if (purpose != null) {
+            tracker?.setPurpose(purpose)
+            data = data.copy(activeSession = tracker?.currentSession)
+        }
         var memos = data.memos
         val at = now()
         briefing.unresolvedMemos.forEach { memos = MemoBoard.markRead(memos, it.id, driverId, at) }
@@ -387,6 +396,17 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         )
         speaker.stop()
         _ui.update { it.copy(screen = Screen.HOME, briefing = null) }
+        if (purpose != null) toast("${purpose.label} 운행으로 운행기록부에 적을게요")
+        publishData()
+        persist()
+    }
+
+    /** 회사 차: 주차 중 운행 목적 바꾸기 */
+    fun setTripPurpose(purpose: TripPurpose) {
+        if (tracker?.currentSession == null) return
+        tracker?.setPurpose(purpose)
+        data = data.copy(activeSession = tracker?.currentSession)
+        toast("운행 목적을 ${KoreanText.toward(purpose.label)} 바꿨어요")
         publishData()
         persist()
     }
@@ -535,8 +555,13 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         data = data.copy(incidents = list.takeLast(MAX_INCIDENTS))
         if (source == IncidentSource.AT_PICKUP) foundIncidentThisBriefing = true
         _ui.update { it.copy(afterDriveChecked = true) }
-        toast("신고했어요. 처리 완료 전까지 모든 운전자에게 보여요")
-        speaker.speak("신고했어요. 처리가 끝날 때까지 다음 운전자에게도 알려 드릴게요.")
+        if (data.usage == CarUsage.COMPANY) {
+            toast("관리자에게 보고했어요. 처리 완료 전까지 모든 운전자에게 보여요")
+            speaker.speak("관리자에게 보고했어요. 처리가 끝날 때까지 다음 운전자에게도 알려 드릴게요.")
+        } else {
+            toast("신고했어요. 처리 완료 전까지 모든 운전자에게 보여요")
+            speaker.speak("신고했어요. 처리가 끝날 때까지 다음 운전자에게도 알려 드릴게요.")
+        }
         publishData()
         persist()
         // 브리핑에서 왔으면 같은 브리핑에 새 신고를 넣어 바로 돌아갑니다(인수 점검 계속).
@@ -636,20 +661,35 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         _ui.update { it.copy(continuousMillis = drivingClock.continuousMillis) }
     }
 
-    /** 모든 기록을 지우고 시연용 기본 파티로 되돌립니다(주차 중에만). */
+    /** 모든 기록을 지우고 시연용 기본 파티로 되돌립니다(주차 중에만). 가족 차/회사 차는 그대로 둡니다. */
     fun resetAllData() {
-        if (_ui.value.drivingUi) return
-        data = SeedData.initial()
-        val t = DriverSessionTracker(null) { UUID.randomUUID().toString() }
+        if (startOver(data.usage)) toast("기록을 초기화했어요")
+    }
+
+    /**
+     * 차량 용도 바꾸기(주차 중에만). 함께 쓰는 사람이 달라지므로 시연용 파티와 기록을 새로 시작합니다.
+     * 회사 차는 지난 운행 몇 건을 지금 계기판 값에 이어 붙여 운행기록부를 보여 줍니다.
+     */
+    fun setUsage(usage: CarUsage) {
+        if (usage == data.usage) return
+        if (startOver(usage)) {
+            toast(if (usage == CarUsage.COMPANY) "회사 차로 바꿨어요. 운행기록부를 자동으로 적어요" else "가족 차로 바꿨어요")
+        }
+    }
+
+    private fun startOver(usage: CarUsage): Boolean {
+        if (_ui.value.drivingUi) return false
+        data = SeedData.forUsage(usage, _ui.value.snapshot?.odometerKm)
+        val t = DriverSessionTracker(data.lastDriverId) { UUID.randomUUID().toString() }
         t.onGear(gateway.driving.value.gear, now(), null)
         tracker = t
         lastGear = gateway.driving.value.gear
         resetRealtimeMonitors()
         careMonitor = CareModeMonitor(careConfig(false))
-        _ui.update { it.copy(screen = Screen.PICKER, briefing = null) }
-        toast("기록을 초기화했어요")
+        _ui.update { it.copy(screen = Screen.PICKER, briefing = null, askingDriverChange = false, parkedPrompt = false) }
         publishData()
         persist()
+        return true
     }
 
     fun onPermissionsChanged() = gateway.onPermissionsChanged()
@@ -678,19 +718,23 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         }
         val today = LocalDate.now()
         val licenses = data.drivers.associate { d -> d.id to LicenseCheck.of(d, today.toEpochDay(), today.year) }
+        val company = data.usage == CarUsage.COMPANY
         _ui.update {
             it.copy(
+                usage = data.usage,
                 vehicleName = data.vehicleName,
                 licenses = licenses,
                 incidents = data.incidents,
                 drivers = data.drivers,
                 currentDriver = session?.let { s -> driverById(s.driverId) },
+                activeSession = session,
                 sessionConfirmed = session?.confirmed ?: true,
                 lastDriverId = session?.driverId ?: awaitingLast ?: data.lastDriverId,
                 canSelectDriver = t?.canSelectDriver ?: true,
                 memos = data.memos,
-                conditions = data.conditions,
-                recommendation = DriverRecommender.recommend(data.drivers, data.conditions),
+                conditions = if (company) emptyMap() else data.conditions,
+                // 회사 차는 직원 건강 정보(컨디션)로 운전자를 추천하지 않습니다.
+                recommendation = if (company) null else DriverRecommender.recommend(data.drivers, data.conditions),
                 sessions = data.sessions,
                 careEvents = data.careEvents,
                 careSummaries = summaries,

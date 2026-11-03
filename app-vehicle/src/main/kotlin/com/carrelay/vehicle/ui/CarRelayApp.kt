@@ -55,6 +55,7 @@ import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.QuietButton
 import com.carrelay.vehicle.ui.components.StatusBadge
 import com.carrelay.vehicle.ui.components.VoiceMemoOverlay
+import com.carrelay.vehicle.ui.components.icon
 import com.carrelay.vehicle.ui.screens.BriefingScreen
 import com.carrelay.vehicle.ui.screens.DriverPickerScreen
 import com.carrelay.vehicle.ui.screens.DrivingScreen
@@ -171,6 +172,7 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
             onResolveMemo = vm::resolveMemo,
             onUpdateIncident = vm::updateIncidentStatus,
+            onSetPurpose = vm::setTripPurpose,
         )
         Screen.MEMO -> MemoScreen(
             ui = ui,
@@ -201,6 +203,7 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onDemoFast = vm::setDemoFast,
             onVoice = vm::setVoiceEnabled,
             onReset = vm::resetAllData,
+            onUsage = vm::setUsage,
         )
     }
 }
@@ -242,6 +245,12 @@ private fun TopBar(
                 if (compact) IconCircle(CarIcons.Shield, CarRelayTheme.status.memo, size = 44.dp, iconSize = 26.dp)
                 else StatusBadge("케어 모드", CarRelayTheme.status.memo, icon = CarIcons.Shield)
             }
+        }
+        // 회사 차: 지금 운행 목적(없으면 '회사 차')을 늘 보이게 둡니다.
+        if (ui.isCompany) {
+            val p = ui.activeSession?.purpose
+            if (compact) IconCircle(p?.icon() ?: CarIcons.Route, CarRelayTheme.status.info, size = 44.dp, iconSize = 26.dp)
+            else StatusBadge(p?.let { "회사 차 · ${it.label}" } ?: "회사 차", CarRelayTheme.status.info, icon = p?.icon() ?: CarIcons.Route)
         }
         Spacer(Modifier.weight(1f))
         if (!ui.drivingUi) {

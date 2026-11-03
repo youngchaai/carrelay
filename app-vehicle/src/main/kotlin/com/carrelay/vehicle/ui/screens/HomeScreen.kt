@@ -21,8 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.carrelay.core.incident.IncidentLog
 import com.carrelay.core.model.IncidentStatus
+import com.carrelay.core.model.TripPurpose
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.avatarTone
+import com.carrelay.vehicle.ui.components.TripPurposeDialog
+import com.carrelay.vehicle.ui.components.icon
+import com.carrelay.vehicle.ui.isCompany
 import com.carrelay.vehicle.ui.components.ActionBar
 import com.carrelay.vehicle.ui.components.Avatar
 import com.carrelay.vehicle.ui.components.IconCircle
@@ -57,6 +61,7 @@ fun HomeScreen(
     onReport: () -> Unit,
     onResolveMemo: (memoId: String, note: String) -> Unit,
     onUpdateIncident: (id: String, IncidentStatus, note: String) -> Unit,
+    onSetPurpose: (TripPurpose) -> Unit = {},
 ) {
     val driver = ui.currentDriver
     if (driver == null) {
@@ -75,13 +80,23 @@ fun HomeScreen(
     val openIncidents = IncidentLog.open(ui.incidents)
     var incidentFor by remember { mutableStateOf<String?>(null) }
     var memoFor by remember { mutableStateOf<String?>(null) }
+    var purposeOpen by remember { mutableStateOf(false) }
+    val purpose = ui.activeSession?.purpose
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
         ScreenHeader(
             title = "${driver.name}님, 주차 중이에요",
-            subtitle = if (!ui.sessionConfirmed) "운전자를 고르지 않고 출발했어요. 다른 분이면 '운전자 바꾸기'를 눌러 주세요" else null,
+            subtitle = when {
+                !ui.sessionConfirmed -> "운전자를 고르지 않고 출발했어요. 다른 분이면 '운전자 바꾸기'를 눌러 주세요"
+                ui.isCompany && purpose != null -> "${purpose.label} 운행 · 운행기록부에 자동으로 적혀요"
+                ui.isCompany -> "운행 목적을 고르면 운행기록부에 자동으로 적혀요"
+                else -> null
+            },
             leading = { Avatar(driver.name, ui.avatarTone(driver.id), size = 80.dp) },
         ) {
+            if (ui.isCompany) {
+                QuietButton(if (purpose != null) "목적 바꾸기" else "목적 고르기", { purposeOpen = true }, icon = purpose?.icon() ?: CarIcons.Route)
+            }
             QuietButton("운전자 바꾸기", onChangeDriver, icon = CarIcons.Handover)
         }
 
@@ -126,6 +141,17 @@ fun HomeScreen(
         }
     }
 
+    if (purposeOpen) {
+        TripPurposeDialog(
+            current = purpose,
+            title = "운행 목적",
+            onPick = { p ->
+                purposeOpen = false
+                onSetPurpose(p)
+            },
+            onDismiss = { purposeOpen = false },
+        )
+    }
     incidentFor?.let { id -> ui.incidents.firstOrNull { it.id == id } }?.let { inc ->
         IncidentStatusDialog(
             incident = inc,

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AtomicFile
 import android.util.Log
 import com.carrelay.core.care.CareEvent
+import com.carrelay.core.model.CarUsage
 import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.DriverCondition
@@ -55,6 +56,8 @@ data class AppData(
     val inspections: List<Inspection> = emptyList(),
     /** 이 차량의 이름 (회사 차는 '업무 1호차' 처럼) */
     val vehicleName: String = "우리 집 그랜저",
+    /** 가족 차 / 회사 차. 회사 차는 운행 목적을 받아 운행기록부를 자동으로 채웁니다. */
+    val usage: CarUsage = CarUsage.FAMILY,
 )
 
 class LocalStore(context: Context) {

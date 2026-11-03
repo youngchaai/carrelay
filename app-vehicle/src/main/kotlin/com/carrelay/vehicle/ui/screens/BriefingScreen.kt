@@ -52,7 +52,10 @@ import androidx.compose.ui.unit.dp
 import com.carrelay.core.handover.Briefing
 import com.carrelay.core.handover.BriefingItem
 import com.carrelay.core.model.IncidentStatus
+import com.carrelay.core.model.TripPurpose
 import com.carrelay.vehicle.ui.CarRelayViewModel
+import com.carrelay.vehicle.ui.components.TripPurposeDialog
+import com.carrelay.vehicle.ui.isCompany
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.avatarTone
 import com.carrelay.vehicle.ui.blockTouches
@@ -90,7 +93,7 @@ private const val GREETING_MILLIS = 2_600L
 @Composable
 fun BriefingScreen(
     ui: UiState,
-    onAcknowledge: () -> Unit,
+    onAcknowledge: (TripPurpose?) -> Unit,
     onResolve: (memoId: String, note: String) -> Unit,
     onReplay: () -> Unit,
     onReportIssue: () -> Unit,
@@ -104,6 +107,8 @@ fun BriefingScreen(
     }
     var resolvingMemoId by remember { mutableStateOf<String?>(null) }
     var openIncidentId by remember { mutableStateOf<String?>(null) }
+    // 회사 차: '확인했어요'(인수 점검 끝) 다음에 운행 목적을 한 번 고릅니다.
+    var askPurpose by remember { mutableStateOf(false) }
     val incidentsById = ui.incidents.associateBy { it.id }
 
     if (ui.greeting) {
@@ -135,7 +140,7 @@ fun BriefingScreen(
                         carModifier = carModifier,
                         onReplay = onReplay,
                         onReportIssue = onReportIssue,
-                        onAcknowledge = onAcknowledge,
+                        onAcknowledge = { if (ui.isCompany) askPurpose = true else onAcknowledge(null) },
                         onIncident = { openIncidentId = it },
                         onMemo = { resolvingMemoId = it },
                     )
@@ -152,6 +157,16 @@ fun BriefingScreen(
                 onResolve(memoId, note)
                 resolvingMemoId = null
             },
+        )
+    }
+    if (askPurpose) {
+        TripPurposeDialog(
+            current = ui.activeSession?.purpose,
+            onPick = { p ->
+                askPurpose = false
+                onAcknowledge(p)
+            },
+            onDismiss = { askPurpose = false },
         )
     }
     openIncidentId?.let(incidentsById::get)?.let { inc ->

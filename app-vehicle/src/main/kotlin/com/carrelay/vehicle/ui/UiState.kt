@@ -6,6 +6,9 @@ import com.carrelay.core.care.CareModeMonitor
 import com.carrelay.core.care.CareReason
 import com.carrelay.core.handover.Briefing
 import com.carrelay.core.memo.VoiceMemoDraft
+import com.carrelay.core.model.CarUsage
+import com.carrelay.core.triplog.TripLog
+import com.carrelay.core.triplog.TripLogRow
 import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.DriverCondition
@@ -51,9 +54,13 @@ data class UiState(
     val sourceName: String = "",
     val isSimulated: Boolean = true,
     val vehicleName: String = "",
+    /** 가족 차 / 회사 차 */
+    val usage: CarUsage = CarUsage.FAMILY,
 
     val drivers: List<Driver> = emptyList(),
     val currentDriver: Driver? = null,
+    /** 진행 중인 운전 구간 (회사 차: 운행 목적, 운행기록부의 '운행 중' 줄) */
+    val activeSession: DriveSession? = null,
     /** 현재 운전 구간을 운전자가 직접 선택했는지(false 면 자동 지정·미확인) */
     val sessionConfirmed: Boolean = true,
     val lastDriverId: String? = null,
@@ -133,3 +140,11 @@ fun UiState.nameOf(driverId: String): String =
 
 /** 가장 최근에 끝난 운전 구간 */
 val UiState.lastEndedSession: DriveSession? get() = sessions.lastOrNull()
+
+val UiState.isCompany: Boolean get() = usage == CarUsage.COMPANY
+
+/** 운행기록부: 끝난 운행 + 진행 중인 운행(지금 계기판 값까지) */
+fun UiState.tripLogRows(): List<TripLogRow> =
+    TripLog.rows(sessions, activeSession, snapshot?.odometerKm) { id ->
+        drivers.firstOrNull { it.id == id } ?: if (id == Driver.GUEST_ID) Driver.GUEST else null
+    }

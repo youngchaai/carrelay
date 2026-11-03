@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,9 @@ fun VehicleStatusCard(
     incidents: List<Incident> = emptyList(),
     /** 차 그림에만 붙일 수식어 (예: 환영 장면에서 이어지는 공유 전환) */
     carModifier: Modifier = Modifier,
+    title: String = "차 상태",
+    /** 숫자 아래에 덧붙일 줄 (예: 운전자 선택 화면의 '마지막 주차·남은 메모') */
+    footer: @Composable ColumnScope.() -> Unit = {},
 ) {
     val status = CarRelayTheme.status
     val energy = current.energyPercent
@@ -44,7 +48,7 @@ fun VehicleStatusCard(
     val warnings = current.activeWarnings.sortedByDescending { it.severity }
 
     SurfaceCard(modifier) {
-        SectionTitle("차 상태")
+        SectionTitle(title)
         CarTopView(
             modifier = Modifier.weight(1f).aspectRatio(CarTopViewAspect).align(Alignment.CenterHorizontally).then(carModifier),
             marks = incidentMarks(incidents.filter { it.isOpen }),
@@ -71,6 +75,7 @@ fun VehicleStatusCard(
                 color = if (first.severity >= 3) status.danger.content else status.warning.content,
             )
         }
+        footer()
     }
 }
 

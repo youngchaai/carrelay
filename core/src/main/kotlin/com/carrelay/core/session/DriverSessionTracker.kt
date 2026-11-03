@@ -4,6 +4,7 @@ import com.carrelay.core.model.DoorEvent
 import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.Gear
+import com.carrelay.core.model.TripPurpose
 
 sealed interface SessionState {
     /** 운전자 선택 대기(주차 중). */
@@ -135,6 +136,15 @@ class DriverSessionTracker(
         state = when (val s = state) {
             is SessionState.Active -> SessionState.Active(s.session.bump())
             is SessionState.ConfirmingChange -> SessionState.ConfirmingChange(s.session.bump())
+            is SessionState.AwaitingDriver -> s
+        }
+    }
+
+    /** 회사 차: 지금 운전 구간의 운행 목적을 정합니다(출발 전 선택, 주차 중 변경). */
+    fun setPurpose(purpose: TripPurpose?) {
+        state = when (val s = state) {
+            is SessionState.Active -> SessionState.Active(s.session.copy(purpose = purpose))
+            is SessionState.ConfirmingChange -> SessionState.ConfirmingChange(s.session.copy(purpose = purpose))
             is SessionState.AwaitingDriver -> s
         }
     }

@@ -34,6 +34,7 @@ import com.carrelay.vehicle.ui.components.SecondaryButton
 import com.carrelay.vehicle.ui.components.SectionTitle
 import com.carrelay.vehicle.ui.components.SurfaceCard
 import com.carrelay.vehicle.ui.formatDateTime
+import com.carrelay.vehicle.ui.isCompany
 import com.carrelay.vehicle.ui.lastEndedSession
 import com.carrelay.vehicle.ui.nameOf
 import com.carrelay.vehicle.ui.theme.CarIcons
@@ -61,7 +62,7 @@ fun ReportScreen(
         ScreenHeader(
             title = if (atPickup) "어디가 이상한가요?" else "무슨 일이 있었나요?",
             subtitle = buildString {
-                append("고칠 때까지 가족 모두에게 알려 드려요")
+                append(if (ui.isCompany) "관리자에게 보고되고, 고칠 때까지 모든 직원에게 보여요" else "고칠 때까지 가족 모두에게 알려 드려요")
                 if (previous != null) {
                     append(" · 직전 운전 ${ui.nameOf(previous.driverId)}")
                     previous.endedAtMillis?.let { append(" (${formatDateTime(it)} 주차)") }
@@ -84,7 +85,8 @@ fun ReportScreen(
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "누구 탓인지 따지지 않아요. 언제 발견했는지만 남겨 가족이 함께 확인해요.",
+                    if (ui.isCompany) "누구 탓인지 따지지 않아요. 언제 발견했는지와 직전 운전자만 남겨 함께 확인해요."
+                    else "누구 탓인지 따지지 않아요. 언제 발견했는지만 남겨 가족이 함께 확인해요.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

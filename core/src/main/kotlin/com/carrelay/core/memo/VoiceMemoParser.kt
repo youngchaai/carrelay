@@ -35,7 +35,9 @@ object VoiceMemoParser {
         // ② 받는 사람: 가족 이름(긴 이름부터) 또는 '다음 사람'
         var to: String? = null
         for (p in people.sortedByDescending { it.name.length }) {
-            val r = Regex("(^|\\s)${Regex.escape(p.name)}\\s*님?\\s*(한테|에게|께|더러|보고)(\\s|$)")
+            // '김 과장'처럼 띄어 쓴 이름도 '김과장'으로 들릴 수 있어서 띄어쓰기는 있어도 없어도 맞춥니다.
+            val namePattern = p.name.trim().split(Regex("\\s+")).joinToString("\\s*") { Regex.escape(it) }
+            val r = Regex("(^|\\s)$namePattern\\s*님?\\s*(한테|에게|께|더러|보고)(\\s|$)")
             if (r.containsMatchIn(s)) {
                 to = p.id
                 s = r.replace(s, " ").trim()

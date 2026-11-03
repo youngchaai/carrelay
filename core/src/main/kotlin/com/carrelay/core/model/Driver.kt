@@ -19,6 +19,7 @@ enum class LicenseClass(val label: String) {
  * @property licenseExpiryEpochDay 면허 갱신(적성검사) 기한. LocalDate.toEpochDay() 값.
  * @property licensedSinceYear 면허를 처음 받은 해 (초보 운전 표시용).
  * @property largeText 큰 글씨 모드. 이 사람이 운전할 때만 차 화면의 글씨와 버튼을 키웁니다.
+ * @property department 회사 차일 때 부서 (운행기록부의 '사용자 부서')
  */
 @Serializable
 data class Driver(
@@ -31,6 +32,7 @@ data class Driver(
     val licenseExpiryEpochDay: Long? = null,
     val licensedSinceYear: Int? = null,
     val largeText: Boolean = false,
+    val department: String? = null,
 ) {
     companion object {
         const val GUEST_ID = "guest"
