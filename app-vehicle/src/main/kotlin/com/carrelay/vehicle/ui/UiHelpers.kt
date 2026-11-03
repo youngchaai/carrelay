@@ -46,7 +46,8 @@ fun Modifier.blockTouches(active: Boolean): Modifier =
 @Composable
 fun UiState.avatarTone(driverId: String): StatusTone {
     if (driverId == Driver.GUEST_ID) return neutralTone()
-    val index = drivers.indexOfFirst { it.id == driverId }.coerceAtLeast(0)
+    val d = drivers.firstOrNull { it.id == driverId } ?: formerDrivers.firstOrNull { it.id == driverId }
+    val index = d?.tone ?: drivers.indexOfFirst { it.id == driverId }.coerceAtLeast(0)
     val palette = CarRelayTheme.status.avatars
     return palette[index % palette.size]
 }

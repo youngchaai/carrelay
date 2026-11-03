@@ -28,6 +28,7 @@ import com.carrelay.core.model.IncidentStatus
 import com.carrelay.core.model.IncidentType
 import com.carrelay.core.model.Inspection
 import com.carrelay.core.profile.LicenseCheck
+import com.carrelay.core.profile.PartyRoster
 import com.carrelay.core.model.DrivingSample
 import com.carrelay.core.model.Gear
 import com.carrelay.core.model.MemoPreset
@@ -85,6 +86,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     private var foundIncidentThisBriefing = false
     /** 신고 화면을 닫으면 돌아갈 화면 */
     private var returnAfterReport: Screen = Screen.HOME
+    /** 프로필 화면을 닫으면 돌아갈 화면 */
+    private var returnAfterProfile: Screen = Screen.SETTINGS
 
     private val _ui = MutableStateFlow(UiState(sourceName = gateway.sourceName, isSimulated = gateway.isSimulated))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -603,7 +606,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun navigate(screen: Screen) {
         if (_ui.value.drivingUi) return
-        _ui.update { it.copy(screen = screen, askingDriverChange = false, parkedPrompt = false) }
+        _ui.update { it.copy(screen = screen, askingDriverChange = false, parkedPrompt = false, profileEdit = null) }
     }
 
     fun answerCareCheckIn() {
@@ -624,6 +627,79 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun declineShift() {
         _ui.update { it.copy(shiftAdvice = null) }
+    }
+
+    // ── 운전자 추가·고치기·삭제 (주차 중에만, 키보드는 차가 서 있을 때만 씁니다) ──
+
+    /** driverId 가 null 이면 새 사람. 프로필 화면을 닫으면 연 화면으로 돌아갑니다. */
+    fun openProfile(driverId: String?) {
+        if (_ui.value.drivingUi) return
+        if (driverId == null && !PartyRoster.canAdd(data.drivers)) {
+            toast("한 차에 ${PartyRoster.MAX_DRIVERS}명까지 등록할 수 있어요")
+            return
+        }
+        returnAfterProfile = _ui.value.screen.takeIf { it != Screen.PROFILE } ?: Screen.SETTINGS
+        _ui.update { it.copy(screen = Screen.PROFILE, profileEdit = ProfileEdit(driverId), askingDriverChange = false) }
+    }
+
+    fun closeProfile() {
+        _ui.update { it.copy(screen = returnAfterProfile, profileEdit = null) }
+    }
+
+    fun saveProfile(draft: Driver) {
+        val edit = _ui.value.profileEdit ?: return
+        val problem = PartyRoster.nameProblem(draft.name, data.drivers, selfId = edit.driverId)
+        if (problem != null) {
+            toast(problem)
+            return
+        }
+        val name = draft.name.trim()
+        data = if (edit.driverId == null) {
+            data.copy(drivers = PartyRoster.add(data.drivers, draft, "d-" + UUID.randomUUID().toString().take(8)))
+        } else {
+            data.copy(drivers = PartyRoster.update(data.drivers, draft.copy(id = edit.driverId)))
+        }
+        toast(
+            when {
+                edit.driverId != null -> "${name}님 프로필을 저장했어요"
+                returnAfterProfile == Screen.PICKER -> "${name}님을 추가했어요. 이름을 눌러 출발하세요"
+                else -> "${name}님을 추가했어요"
+            },
+        )
+        closeProfile()
+        publishData()
+        persist()
+    }
+
+    /**
+     * 삭제: 지금 운전 중인 사람과 마지막 한 명은 지우지 않습니다.
+     * 지난 운전 기록·운행기록부·메모의 이름은 남기고(회사 차 증빙), 직전 운전자 자동 지정에서는 뺍니다.
+     */
+    fun deleteDriver(driverId: String) {
+        val name = nameOf(driverId)
+        when {
+            tracker?.currentSession?.driverId == driverId -> {
+                toast("지금 운전 중인 분은 삭제할 수 없어요. '운전 끝내기' 뒤에 지워 주세요")
+                return
+            }
+            data.drivers.size <= 1 -> {
+                toast("최소 한 명은 있어야 해요")
+                return
+            }
+        }
+        val r = PartyRoster.remove(data.drivers, data.formerDrivers, driverId)
+        tracker?.forgetDriver(driverId)
+        data = data.copy(
+            drivers = r.drivers,
+            formerDrivers = r.former,
+            conditions = data.conditions - driverId,
+            lastSeen = data.lastSeen - driverId,
+            lastDriverId = data.lastDriverId?.takeIf { it != driverId },
+        )
+        toast("${name}님을 삭제했어요. 지난 기록에는 이름이 남아요")
+        closeProfile()
+        publishData()
+        persist()
     }
 
     /** 케어 모드는 운전자 본인의 동의로만 켜고 끕니다(화면에서 동의 확인 후 호출). */
@@ -686,7 +762,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         lastGear = gateway.driving.value.gear
         resetRealtimeMonitors()
         careMonitor = CareModeMonitor(careConfig(false))
-        _ui.update { it.copy(screen = Screen.PICKER, briefing = null, askingDriverChange = false, parkedPrompt = false) }
+        _ui.update { it.copy(screen = Screen.PICKER, briefing = null, askingDriverChange = false, parkedPrompt = false, profileEdit = null) }
         publishData()
         persist()
         return true
@@ -726,6 +802,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                 licenses = licenses,
                 incidents = data.incidents,
                 drivers = data.drivers,
+                formerDrivers = data.formerDrivers,
                 currentDriver = session?.let { s -> driverById(s.driverId) },
                 activeSession = session,
                 sessionConfirmed = session?.confirmed ?: true,
@@ -756,6 +833,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun driverById(id: String): Driver =
         data.drivers.firstOrNull { it.id == id }
+            ?: data.formerDrivers.firstOrNull { it.id == id }
             ?: if (id == Driver.GUEST_ID) Driver.GUEST else Driver(id = id, name = "알 수 없음")
 
     private fun nameOf(id: String): String = driverById(id).name

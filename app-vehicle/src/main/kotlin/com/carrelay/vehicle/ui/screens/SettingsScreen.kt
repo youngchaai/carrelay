@@ -39,7 +39,9 @@ import com.carrelay.vehicle.BuildConfig
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.avatarTone
 import com.carrelay.vehicle.ui.components.PrimaryButton
+import com.carrelay.vehicle.ui.components.QuietButton
 import com.carrelay.vehicle.ui.isCompany
+import androidx.compose.foundation.layout.Spacer
 import com.carrelay.vehicle.ui.components.Avatar
 import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.ScreenHeader
@@ -62,6 +64,8 @@ fun SettingsScreen(
     onVoice: (Boolean) -> Unit,
     onReset: () -> Unit,
     onUsage: (CarUsage) -> Unit = {},
+    /** null = 새 사람 추가 */
+    onEditDriver: (String?) -> Unit = {},
 ) {
     var consentFor by remember { mutableStateOf<Driver?>(null) }
     var confirmReset by remember { mutableStateOf(false) }
@@ -75,13 +79,15 @@ fun SettingsScreen(
 
         // 가족(직원) 프로필: 면허 종류·갱신·경력, 사고·파손 기록
         SurfaceCard(Modifier.fillMaxWidth()) {
-            SectionTitle(if (ui.isCompany) "직원 프로필" else "가족 프로필") {
+            SectionTitle(if (ui.isCompany) "직원 프로필 · ${ui.drivers.size}명" else "가족 프로필 · ${ui.drivers.size}명") {
                 StatusBadge("면허 번호는 저장하지 않아요", neutralTone(), icon = CarIcons.Shield)
+                Spacer(Modifier.size(Dimens.gapS))
+                QuietButton(if (ui.isCompany) "직원 추가" else "가족 추가", { onEditDriver(null) }, icon = CarIcons.PersonAdd)
             }
             // 두 명씩 두 줄: 한 칸이 넓어야 글자가 중간에서 끊기지 않습니다.
             ui.drivers.chunked(2).forEach { pair ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gapS)) {
-                    pair.forEach { d -> ProfileCard(d, ui, Modifier.weight(1f), onLargeText = { on -> onLargeText(d.id, on) }) }
+                    pair.forEach { d -> ProfileCard(d, ui, Modifier.weight(1f), onLargeText = { on -> onLargeText(d.id, on) }, onEdit = { onEditDriver(d.id) }) }
                     if (pair.size == 1) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 }
             }
@@ -266,7 +272,7 @@ private fun CompanyModeCard(modifier: Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText: (Boolean) -> Unit) {
+private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText: (Boolean) -> Unit, onEdit: () -> Unit) {
     val s = CarRelayTheme.status
     val license = ui.licenses[d.id]
     val stats = IncidentLog.statsFor(ui.incidents, d.id)
@@ -285,6 +291,7 @@ private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText:
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            QuietButton("편집", onEdit, icon = CarIcons.Edit)
         }
         // 알아야 할 것만: 갱신이 가까우면 갱신, 초보면 초보. 문제없으면 아무것도 붙이지 않습니다.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

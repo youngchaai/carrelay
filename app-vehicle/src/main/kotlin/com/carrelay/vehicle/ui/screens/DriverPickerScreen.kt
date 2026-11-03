@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.carrelay.core.model.Driver
 import com.carrelay.core.profile.LicenseState
+import com.carrelay.core.profile.PartyRoster
 import com.carrelay.core.text.KoreanText
 import com.carrelay.core.triplog.TripLog
 import com.carrelay.vehicle.ui.UiState
@@ -67,8 +68,10 @@ import kotlin.math.roundToInt
  * 기어 P에서만 고를 수 있습니다.
  */
 @Composable
-fun DriverPickerScreen(ui: UiState, onSelect: (String) -> Unit, onKeepSame: () -> Unit) {
+fun DriverPickerScreen(ui: UiState, onSelect: (String) -> Unit, onKeepSame: () -> Unit, onAdd: () -> Unit = {}) {
     val drivers = ui.drivers + Driver.GUEST
+    // "바뀌었나요?"를 묻는 중에는 고르기만 하게, 새 사람 추가는 평소에만 보여 줍니다.
+    val showAdd = !ui.askingDriverChange && PartyRoster.canAdd(ui.drivers)
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(Dimens.gap)) {
         val snap = ui.snapshot
         if (snap != null) {
@@ -119,6 +122,7 @@ fun DriverPickerScreen(ui: UiState, onSelect: (String) -> Unit, onKeepSame: () -
                 modifier = Modifier.weight(1f),
             ) {
                 items(drivers, key = { it.id }) { driver -> DriverCard(driver, ui, onSelect) }
+                if (showAdd) item(key = "add") { AddDriverCard(ui, onAdd) }
             }
         }
     }
@@ -153,6 +157,37 @@ private fun FactRow(icon: ImageVector, tint: Color, text: String) {
     Row(Modifier.heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(28.dp))
         Text(text, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** 새 사람 추가: 점선 대신 옅은 테두리와 큰 + 로, 다른 카드보다 한 단계 조용하게 */
+@Composable
+private fun AddDriverCard(ui: UiState, onAdd: () -> Unit) {
+    val shape = RoundedCornerShape(Dimens.cardRadius)
+    val c = MaterialTheme.colorScheme
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(232.dp)
+            .alpha(if (ui.canSelectDriver) 1f else 0.45f)
+            .clip(shape)
+            .border(BorderStroke(2.dp, c.primary.copy(alpha = 0.35f)), shape)
+            .clickable(enabled = ui.canSelectDriver, onClick = onAdd)
+            .padding(24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        IconCircle(CarIcons.PersonAdd, primaryTone(), size = 88.dp, iconSize = 44.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(if (ui.isCompany) "새 직원 추가" else "새 가족 추가", style = MaterialTheme.typography.headlineSmall, color = c.primary)
+            Text(
+                "이름만 적으면 바로 탈 수 있어요. 면허 정보는 나중에 넣어도 돼요",
+                style = MaterialTheme.typography.bodyLarge,
+                color = c.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

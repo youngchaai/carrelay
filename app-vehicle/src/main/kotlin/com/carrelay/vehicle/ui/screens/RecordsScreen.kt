@@ -213,9 +213,12 @@ private fun DriverRecords(ui: UiState, title: String) {
     if (byDriver.isEmpty()) {
         EmptyCard("아직 끝난 운전이 없어요. 운전자를 바꾸거나 '운전 끝내기'를 누르면 기록돼요.")
     }
-    (ui.drivers + Driver.GUEST).forEach { driver ->
+    // 삭제한 사람도 지난 운전이 있으면 이름과 함께 남깁니다(회사 차는 운행기록부 증빙과 맞춰야 함).
+    val formerIds = ui.formerDrivers.map { it.id }.toSet()
+    (ui.drivers + ui.formerDrivers + Driver.GUEST).forEach { driver ->
         val sessions = byDriver[driver.id].orEmpty()
         if (sessions.isEmpty()) return@forEach
+        val removed = driver.id in formerIds
         val distance = sessions.mapNotNull { it.distanceKm }.sum()
         val duration = sessions.sumOf { ((it.endedAtMillis ?: it.startedAtMillis) - it.startedAtMillis).coerceAtLeast(0L) }
         val unconfirmed = sessions.count { !it.confirmed }
@@ -225,9 +228,12 @@ private fun DriverRecords(ui: UiState, title: String) {
         val status = CarRelayTheme.status
         SurfaceCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                Avatar(driver.name, ui.avatarTone(driver.id), size = 72.dp)
+                Avatar(driver.name, if (removed) neutralTone() else ui.avatarTone(driver.id), size = 72.dp)
                 Column(Modifier.weight(1f)) {
-                    Text(driver.name, style = MaterialTheme.typography.titleLarge)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(driver.name, style = MaterialTheme.typography.titleLarge)
+                        if (removed) StatusBadge("삭제됨", neutralTone())
+                    }
                     Text("운전 ${sessions.size}회 · ${KoreanText.duration(duration)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {

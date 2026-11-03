@@ -67,7 +67,13 @@ object CarIcons {
         stroke("Car", "M5 15l1.6-5.2A2 2 0 0 1 8.5 8.4h7a2 2 0 0 1 1.9 1.4L19 15", "M3 15h18v4H3z", "M7 19v1.5", "M17 19v1.5")
     }
 
-    private const val CIRCLE = "M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18z"
+    val Plus by lazy { stroke("Plus", "M12 5v14", "M5 12h14") }
+    val Minus by lazy { stroke("Minus", "M5 12h14") }
+    val Edit by lazy { stroke("Edit", "M4 20h4L19 9l-4-4L4 16z", "M13.5 6.5l4 4") }
+    val Trash by lazy { stroke("Trash", "M4 7h16", "M9 7V4h6v3", "M6 7l1 13h10l1-13", "M10 11v6", "M14 11v6") }
+    val PersonAdd by lazy { stroke("PersonAdd", "M10 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8z", "M3 21c0-4.4 3.1-7 7-7c1.6 0 3 .4 4.2 1.1", "M19 14v6", "M16 17h6") }
+
+    private const val CIRCLE ="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18z"
 
     private fun stroke(name: String, vararg paths: String): ImageVector {
         val builder = ImageVector.Builder(

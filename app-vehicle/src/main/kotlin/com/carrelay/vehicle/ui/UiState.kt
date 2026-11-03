@@ -46,7 +46,13 @@ enum class Screen {
 
     /** 프로필 · 케어 모드 · 시연 설정 */
     SETTINGS,
+
+    /** 운전자(가족·직원) 추가·고치기·삭제 (주차 중에만) */
+    PROFILE,
 }
+
+/** 프로필 화면에서 고치는 사람. driverId 가 null 이면 새 사람 */
+data class ProfileEdit(val driverId: String?)
 
 data class UiState(
     val loading: Boolean = true,
@@ -58,6 +64,9 @@ data class UiState(
     val usage: CarUsage = CarUsage.FAMILY,
 
     val drivers: List<Driver> = emptyList(),
+    /** 삭제한 사람 (기록에 이름을 보여 주는 데만 씀) */
+    val formerDrivers: List<Driver> = emptyList(),
+    val profileEdit: ProfileEdit? = null,
     val currentDriver: Driver? = null,
     /** 진행 중인 운전 구간 (회사 차: 운행 목적, 운행기록부의 '운행 중' 줄) */
     val activeSession: DriveSession? = null,
@@ -136,7 +145,14 @@ data class VoiceMemoUi(
 
 fun UiState.nameOf(driverId: String): String =
     drivers.firstOrNull { it.id == driverId }?.name
+        ?: formerDrivers.firstOrNull { it.id == driverId }?.name
         ?: if (driverId == Driver.GUEST_ID) Driver.GUEST.name else "알 수 없음"
+
+/** 지금 파티원 또는 삭제한 사람 (기록 표시용) */
+fun UiState.anyDriver(driverId: String): Driver? =
+    drivers.firstOrNull { it.id == driverId }
+        ?: formerDrivers.firstOrNull { it.id == driverId }
+        ?: if (driverId == Driver.GUEST_ID) Driver.GUEST else null
 
 /** 가장 최근에 끝난 운전 구간 */
 val UiState.lastEndedSession: DriveSession? get() = sessions.lastOrNull()
@@ -145,6 +161,4 @@ val UiState.isCompany: Boolean get() = usage == CarUsage.COMPANY
 
 /** 운행기록부: 끝난 운행 + 진행 중인 운행(지금 계기판 값까지) */
 fun UiState.tripLogRows(): List<TripLogRow> =
-    TripLog.rows(sessions, activeSession, snapshot?.odometerKm) { id ->
-        drivers.firstOrNull { it.id == id } ?: if (id == Driver.GUEST_ID) Driver.GUEST else null
-    }
+    TripLog.rows(sessions, activeSession, snapshot?.odometerKm) { id -> anyDriver(id) }

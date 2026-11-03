@@ -61,6 +61,7 @@ import com.carrelay.vehicle.ui.screens.DriverPickerScreen
 import com.carrelay.vehicle.ui.screens.DrivingScreen
 import com.carrelay.vehicle.ui.screens.HomeScreen
 import com.carrelay.vehicle.ui.screens.MemoScreen
+import com.carrelay.vehicle.ui.screens.ProfileEditScreen
 import com.carrelay.vehicle.ui.screens.RecordsScreen
 import com.carrelay.vehicle.ui.screens.ReportScreen
 import com.carrelay.vehicle.ui.screens.SettingsScreen
@@ -153,7 +154,8 @@ private const val LARGE_TEXT_SCALE = 1.2f
 @Composable
 private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
     when (ui.screen) {
-        Screen.PICKER -> DriverPickerScreen(ui, onSelect = vm::selectDriver, onKeepSame = vm::keepSameDriver)
+        Screen.PICKER -> DriverPickerScreen(ui, onSelect = vm::selectDriver, onKeepSame = vm::keepSameDriver, onAdd = { vm.openProfile(null) })
+        Screen.PROFILE -> ProfileEditScreen(ui, onSave = vm::saveProfile, onCancel = vm::closeProfile, onDelete = vm::deleteDriver)
         Screen.BRIEFING -> BriefingScreen(
             ui = ui,
             onAcknowledge = vm::acknowledgeBriefing,
@@ -204,6 +206,7 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onVoice = vm::setVoiceEnabled,
             onReset = vm::resetAllData,
             onUsage = vm::setUsage,
+            onEditDriver = vm::openProfile,
         )
     }
 }
@@ -256,7 +259,7 @@ private fun TopBar(
         if (!ui.drivingUi) {
             NavItem("홈", CarIcons.Home, selected = ui.screen == Screen.HOME, compact) { onNavigate(Screen.HOME) }
             NavItem("기록", CarIcons.Records, selected = ui.screen == Screen.RECORDS, compact) { onNavigate(Screen.RECORDS) }
-            NavItem("설정", CarIcons.Settings, selected = ui.screen == Screen.SETTINGS, compact) { onNavigate(Screen.SETTINGS) }
+            NavItem("설정", CarIcons.Settings, selected = ui.screen == Screen.SETTINGS || ui.screen == Screen.PROFILE, compact) { onNavigate(Screen.SETTINGS) }
         }
         if (consoleAvailable) {
             QuietButton(if (consoleOpen) "콘솔 닫기" else "가상 차량", onToggleConsole, icon = CarIcons.Car)

@@ -140,6 +140,15 @@ class DriverSessionTracker(
         }
     }
 
+    /**
+     * 파티에서 삭제된 사람을 '직전 운전자'에서 지웁니다.
+     * 그러지 않으면 아무도 고르지 않고 출발했을 때 지운 사람에게 운전 구간이 자동으로 붙습니다.
+     */
+    fun forgetDriver(driverId: String) {
+        val s = state
+        if (s is SessionState.AwaitingDriver && s.lastDriverId == driverId) state = SessionState.AwaitingDriver(null)
+    }
+
     /** 회사 차: 지금 운전 구간의 운행 목적을 정합니다(출발 전 선택, 주차 중 변경). */
     fun setPurpose(purpose: TripPurpose?) {
         state = when (val s = state) {

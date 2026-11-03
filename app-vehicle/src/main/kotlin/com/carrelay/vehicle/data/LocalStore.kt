@@ -58,6 +58,8 @@ data class AppData(
     val vehicleName: String = "우리 집 그랜저",
     /** 가족 차 / 회사 차. 회사 차는 운행 목적을 받아 운행기록부를 자동으로 채웁니다. */
     val usage: CarUsage = CarUsage.FAMILY,
+    /** 파티에서 삭제한 사람. 지난 운전 기록·운행기록부·메모에 이름을 그대로 보여 주려고 남깁니다. */
+    val formerDrivers: List<Driver> = emptyList(),
 )
 
 class LocalStore(context: Context) {
@@ -72,31 +74,15 @@ class LocalStore(context: Context) {
     suspend fun load(): AppData = withContext(Dispatchers.IO) {
         try {
             // readFully 는 쓰기 도중 종료된 경우 백업 파일에서 복구합니다.
-            fillSampleLicenses(json.decodeFromString(AppData.serializer(), file.readFully().decodeToString()))
+            // (예전에는 면허 값이 빈 시연용 프로필에 샘플 값을 채웠는데, 이제 사람이 프로필에서 면허를 '모름'으로
+            //  지울 수 있으므로 저장된 값을 그대로 씁니다.)
+            json.decodeFromString(AppData.serializer(), file.readFully().decodeToString())
         } catch (e: FileNotFoundException) {
             SeedData.initial() // 첫 실행
         } catch (e: Exception) {
             Log.e(TAG, "저장 데이터 읽기 실패, 기본값으로 시작", e)
             SeedData.initial()
         }
-    }
-
-    /**
-     * 면허 정보가 생기기 전 버전에서 저장한 시연용 파티에는 면허 값이 없습니다.
-     * 시연용 기본 프로필(같은 id)이고 면허 값이 모두 비어 있을 때만 샘플 값을 채웁니다.
-     */
-    private fun fillSampleLicenses(data: AppData): AppData {
-        val seed = SeedData.initial().drivers.associateBy { it.id }
-        return data.copy(
-            drivers = data.drivers.map { d ->
-                val s = seed[d.id]
-                if (s != null && d.licenseClass == null && d.licenseExpiryEpochDay == null && d.licensedSinceYear == null) {
-                    d.copy(licenseClass = s.licenseClass, licenseExpiryEpochDay = s.licenseExpiryEpochDay, licensedSinceYear = s.licensedSinceYear)
-                } else {
-                    d
-                }
-            },
-        )
     }
 
     /** 저장 요청이 겹쳐도 들어온 순서대로 하나씩 씁니다. */

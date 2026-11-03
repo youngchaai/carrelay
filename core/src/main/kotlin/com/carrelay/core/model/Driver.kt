@@ -33,6 +33,8 @@ data class Driver(
     val licensedSinceYear: Int? = null,
     val largeText: Boolean = false,
     val department: String? = null,
+    /** 이 사람의 고정 색 번호. 다른 사람을 지워도 색이 바뀌지 않게 추가할 때 정합니다(없으면 목록 순서). */
+    val tone: Int? = null,
 ) {
     companion object {
         const val GUEST_ID = "guest"
