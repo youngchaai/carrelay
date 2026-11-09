@@ -1,6 +1,24 @@
 package com.carrelay.vehicle.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -72,12 +90,32 @@ fun DriverPickerScreen(ui: UiState, onSelect: (String) -> Unit, onKeepSame: () -
     val drivers = ui.drivers + Driver.GUEST
     // "바뀌었나요?"를 묻는 중에는 고르기만 하게, 새 사람 추가는 평소에만 보여 줍니다.
     val showAdd = !ui.askingDriverChange && PartyRoster.canAdd(ui.drivers)
+    // 누르면 고른 카드만 테두리·체크로 남고 나머지는 옅어진 뒤 넘어갑니다(로그인 버튼이 바뀌는 순간처럼).
+    var chosen by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(chosen) {
+        val id = chosen ?: return@LaunchedEffect
+        delay(CHOOSE_MILLIS)
+        onSelect(id)
+        // 넘어가지 못했으면(예: 그사이 기어가 P가 아님) 다시 고를 수 있게 풉니다.
+        delay(1_500)
+        chosen = null
+    }
+    val pick: (String) -> Unit = { id -> if (chosen == null) chosen = id }
+    // 왼쪽 차 카드는 옆에서 밀려 들어오고, 오른쪽 사람 카드는 한 장씩 아래에서 올라옵니다.
+    val slide = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { slide.animateTo(1f, tween(520, easing = FastOutSlowInEasing)) }
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(Dimens.gap)) {
         val snap = ui.snapshot
         if (snap != null) {
             VehicleStatusCard(
                 snap,
-                Modifier.weight(0.31f).fillMaxHeight(),
+                Modifier
+                    .weight(0.31f)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        alpha = slide.value
+                        translationX = (1f - slide.value) * -64.dp.toPx()
+                    },
                 incidents = ui.incidents,
                 title = ui.vehicleName.ifBlank { "차 상태" },
             ) { HandoverFacts(ui) }
@@ -121,11 +159,25 @@ fun DriverPickerScreen(ui: UiState, onSelect: (String) -> Unit, onKeepSame: () -
                 verticalArrangement = Arrangement.spacedBy(Dimens.gap),
                 modifier = Modifier.weight(1f),
             ) {
-                items(drivers, key = { it.id }) { driver -> DriverCard(driver, ui, onSelect) }
-                if (showAdd) item(key = "add") { AddDriverCard(ui, onAdd) }
+                itemsIndexed(drivers, key = { _, d -> d.id }) { i, driver -> DriverCard(driver, ui, i, chosen, pick) }
+                if (showAdd) item(key = "add") { AddDriverCard(ui, drivers.size, dimmed = chosen != null, onAdd) }
             }
         }
     }
+}
+
+/** 고른 카드를 보여 주는 시간 (그다음 환영 장면) */
+private const val CHOOSE_MILLIS = 360L
+
+/** 카드 등장: [index] 순서대로 조금씩 늦게 아래에서 떠오릅니다(화면에 처음 들어올 때 한 번). */
+@Composable
+private fun rememberRise(index: Int): Animatable<Float, AnimationVector1D> {
+    val a = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(80L * index + 120L)
+        a.animateTo(1f, tween(440, easing = FastOutSlowInEasing))
+    }
+    return a
 }
 
 /** 넘겨받기 전에 알아 둘 것: 누가 언제 세워 뒀는지, 남은 메모, 처리 안 된 사고, (회사 차) 업무사용비율 */
@@ -162,17 +214,22 @@ private fun FactRow(icon: ImageVector, tint: Color, text: String) {
 
 /** 새 사람 추가: 점선 대신 옅은 테두리와 큰 + 로, 다른 카드보다 한 단계 조용하게 */
 @Composable
-private fun AddDriverCard(ui: UiState, onAdd: () -> Unit) {
+private fun AddDriverCard(ui: UiState, index: Int, dimmed: Boolean, onAdd: () -> Unit) {
     val shape = RoundedCornerShape(Dimens.cardRadius)
     val c = MaterialTheme.colorScheme
+    val rise = rememberRise(index)
+    val dim by animateFloatAsState(if (dimmed) 0.3f else 1f, tween(260), label = "dim")
     Row(
         Modifier
             .fillMaxWidth()
             .height(232.dp)
-            .alpha(if (ui.canSelectDriver) 1f else 0.45f)
+            .graphicsLayer {
+                alpha = (if (ui.canSelectDriver) 1f else 0.45f) * rise.value * dim
+                translationY = (1f - rise.value) * 48.dp.toPx()
+            }
             .clip(shape)
             .border(BorderStroke(2.dp, c.primary.copy(alpha = 0.35f)), shape)
-            .clickable(enabled = ui.canSelectDriver, onClick = onAdd)
+            .clickable(enabled = ui.canSelectDriver && !dimmed, onClick = onAdd)
             .padding(24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -195,7 +252,7 @@ private data class CardNote(val text: String, val tone: StatusTone, val icon: Im
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DriverCard(driver: Driver, ui: UiState, onSelect: (String) -> Unit) {
+private fun DriverCard(driver: Driver, ui: UiState, index: Int, chosen: String?, onSelect: (String) -> Unit) {
     val recommended = ui.recommendation?.driverId == driver.id
     val s = CarRelayTheme.status
     val tone = ui.avatarTone(driver.id)
@@ -217,21 +274,35 @@ private fun DriverCard(driver: Driver, ui: UiState, onSelect: (String) -> Unit) 
 
     val shape = RoundedCornerShape(Dimens.cardRadius)
     val enabled = ui.canSelectDriver
+    val isChosen = chosen == driver.id
     // 추천 받은 분, 또는 "바뀌었나요?"를 묻는 중이면 지금 운전하던 분을 테두리로 짚어 줍니다.
     val outlined = recommended || (ui.askingDriverChange && ui.currentDriver?.id == driver.id)
+    val rise = rememberRise(index)
+    val dim by animateFloatAsState(if (chosen != null && !isChosen) 0.3f else 1f, tween(260), label = "dim")
+    val lift by animateFloatAsState(if (isChosen) 1.03f else 1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "lift")
+    val pop by animateFloatAsState(if (isChosen) 1f else 0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "pop")
     // 그 사람 색으로 위쪽을 살짝 물들여 이름보다 먼저 '내 카드'가 눈에 들어오게 합니다.
     Column(
         Modifier
             .fillMaxWidth()
             .height(232.dp)
-            .alpha(if (enabled) 1f else 0.45f)
+            .graphicsLayer {
+                alpha = (if (enabled) 1f else 0.45f) * rise.value * dim
+                translationY = (1f - rise.value) * 48.dp.toPx()
+                scaleX = lift
+                scaleY = lift
+            }
             .clip(shape)
             .background(Brush.verticalGradient(0f to tone.container, 0.75f to MaterialTheme.colorScheme.surface))
             .border(
-                if (outlined) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                when {
+                    isChosen -> BorderStroke(4.dp, MaterialTheme.colorScheme.primary)
+                    outlined -> BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+                    else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                },
                 shape,
             )
-            .clickable(enabled = enabled) { onSelect(driver.id) }
+            .clickable(enabled = enabled && chosen == null) { onSelect(driver.id) }
             .padding(horizontal = 22.dp, vertical = 22.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -245,7 +316,19 @@ private fun DriverCard(driver: Driver, ui: UiState, onSelect: (String) -> Unit) 
                 }
                 if (sub != null) Text(sub, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(CarIcons.Handover, contentDescription = null, tint = tone.content.copy(alpha = 0.55f), modifier = Modifier.size(32.dp))
+            // 고르면 넘기기 표시가 체크로 바뀌며 톡 튀어나옵니다.
+            Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                if (pop > 0.02f) {
+                    Box(
+                        Modifier.size(52.dp).scale(pop).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(CarIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(32.dp))
+                    }
+                } else {
+                    Icon(CarIcons.Handover, contentDescription = null, tint = tone.content.copy(alpha = 0.55f), modifier = Modifier.size(32.dp))
+                }
+            }
         }
         // 지난 운전: 언제, 얼마나. 게스트는 기록이 어떻게 남는지 알려 줍니다.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

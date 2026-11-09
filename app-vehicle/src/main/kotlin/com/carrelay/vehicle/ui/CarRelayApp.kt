@@ -53,6 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.carrelay.core.model.IncidentSource
 import com.carrelay.vehicle.ui.components.Avatar
+import com.carrelay.vehicle.ui.components.BrandLockup
+import com.carrelay.vehicle.ui.components.HandoffOverlay
+import com.carrelay.vehicle.ui.components.LaunchSplash
 import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.QuietButton
 import com.carrelay.vehicle.ui.components.StatusBadge
@@ -78,6 +81,11 @@ import kotlinx.coroutines.delay
 fun CarRelayApp(vm: CarRelayViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     var consoleOpen by rememberSaveable { mutableStateOf(vm.simulatedCar != null) }
+    // 시작 화면은 앱을 새로 켰을 때만 (낮·밤 전환처럼 화면이 다시 만들어질 때는 다시 보이지 않음)
+    var splash by rememberSaveable { mutableStateOf(true) }
+    var splashLeaving by remember { mutableStateOf(false) }
+    LaunchedEffect(ui.drivingUi) { if (ui.drivingUi) splash = false }
+    val contentVisible = !splash || splashLeaving
 
     // 큰 글씨 모드인 사람이 운전하면 앱 화면 전체(글씨·버튼·간격)를 같은 비율로 키웁니다.
     // 비율을 함께 키워야 글씨만 커져 버튼 밖으로 넘치는 일이 없습니다. (가상 차량 콘솔은 그대로)
@@ -103,8 +111,8 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                         .fillMaxWidth()
                         .padding(start = Dimens.page, end = Dimens.page, top = 8.dp, bottom = Dimens.gap),
                 ) {
-                    if (ui.loading) {
-                        CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    if (ui.loading || !contentVisible) {
+                        if (!splash) CircularProgressIndicator(Modifier.align(Alignment.Center))
                     } else {
                         // 화면이 바뀔 때만 부드럽게 겹쳐 바꿉니다. 나가는 화면은 바뀌기 직전 상태로 그립니다.
                         AnimatedContent(
@@ -121,8 +129,10 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                         }
                     }
                     ToastBar(
-                        message = ui.toast, onDismiss = vm::clearToast, modifier = Modifier.align(Alignment.BottomCenter),
+                        message = ui.toast, onDismiss = vm::clearToast,
+                        modifier = Modifier.align(if (ui.drivingUi) Alignment.TopCenter else Alignment.BottomCenter),
                         actionLabel = ui.toastAction, onAction = vm::undoLast,
+                        atTop = ui.drivingUi,
                     )
                 }
             }
@@ -138,6 +148,8 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                     onClose = vm::cancelVoiceMemo,
                 )
             }
+            // 운전 끝: '인계 완료' 요약 (위쪽 메뉴까지 덮어 잠깐 보여 줌, 주행 중에는 안 보임)
+            ui.handoff?.takeIf { !ui.drivingUi }?.let { HandoffOverlay(it, onDone = vm::handoffDone) }
             }
             }
 
@@ -149,6 +161,11 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                     modifier = Modifier.width(360.dp).fillMaxHeight(),
                 )
             }
+        }
+
+        // 앱을 처음 켤 때 한 번: 빛줄기가 CARRELAY 를 밝히는 시작 화면. 주행 중이면 건너뜁니다.
+        if (splash && !ui.drivingUi) {
+            LaunchSplash(ready = !ui.loading, onDone = { splash = false }, onLeaving = { splashLeaving = true })
         }
     }
 }
@@ -232,10 +249,8 @@ private fun TopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 20.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(CarIcons.Handover, contentDescription = "카릴레이", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
-            if (!compact) Text("카릴레이", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-        }
+        // 로고: 앱 아이콘과 같은 표시 + 시연 영상과 같은 글꼴의 CARRELAY
+        BrandLockup(compact)
         ui.currentDriver?.let { d ->
             Row(
                 Modifier
@@ -298,6 +313,8 @@ private fun ToastBar(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
+    /** 주행 화면: 가운데 큰 버튼('괜찮아요' 등)을 가리지 않게 맨 위에 띄웁니다. */
+    atTop: Boolean = false,
 ) {
     // 사라지는 동안에도 글자가 남아 있도록 마지막 메시지를 기억합니다.
     var shown by remember { mutableStateOf("") }
@@ -320,7 +337,7 @@ private fun ToastBar(
         Row(
             Modifier
                 // 화면 아래 큰 버튼 줄(104dp) 위에 떠서 버튼을 가리지 않게 합니다.
-                .padding(bottom = Dimens.button + Dimens.gap + 8.dp)
+                .padding(top = if (atTop) 8.dp else 0.dp, bottom = if (atTop) 0.dp else Dimens.button + Dimens.gap + 8.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(MaterialTheme.colorScheme.inverseSurface)
                 .padding(horizontal = 32.dp, vertical = 20.dp),

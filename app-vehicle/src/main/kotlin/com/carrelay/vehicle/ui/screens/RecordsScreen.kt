@@ -43,6 +43,9 @@ import kotlin.math.roundToInt
 import com.carrelay.vehicle.ui.components.Avatar
 import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.IncidentStatusDialog
+import com.carrelay.vehicle.ui.components.IncidentSteps
+import com.carrelay.vehicle.ui.components.ProgressRing
+import com.carrelay.vehicle.ui.components.animatedCount
 import com.carrelay.vehicle.ui.components.ScreenHeader
 import com.carrelay.vehicle.ui.components.SectionTitle
 import com.carrelay.vehicle.ui.components.StatBlock
@@ -115,20 +118,35 @@ private fun TripLogSection(ui: UiState) {
     val sum = TripLog.summary(rows)
     val status = CarRelayTheme.status
     ScreenHeader("운행기록부", "${ui.vehicleName} · 손으로 적을 칸 없이 자동으로 채워요")
+    // 화면을 열면 숫자가 0에서 올라가고, 업무사용비율 원이 차오릅니다(주차 중에만 여는 화면).
+    val totalShown = animatedCount(sum.totalKm)
+    val businessShown = animatedCount(sum.businessUseKm)
+    val ratioShown = animatedCount((sum.businessRatio ?: 0.0) * 100)
     SurfaceCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            StatBlock("총 주행", "${km(sum.totalKm)}km", Modifier.weight(1f), valueStyle = MaterialTheme.typography.headlineMedium)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatBlock("총 주행", "${km(totalShown)}km", Modifier.weight(1f), valueStyle = MaterialTheme.typography.headlineMedium)
             StatBlock(
-                "업무용 사용거리", "${km(sum.businessUseKm)}km", Modifier.weight(1.2f),
+                "업무용 사용거리", "${km(businessShown)}km", Modifier.weight(1.2f),
                 valueStyle = MaterialTheme.typography.headlineMedium,
                 caption = "출퇴근 ${km(sum.commuteKm)} · 일반 업무 ${km(sum.businessKm)}",
             )
-            StatBlock(
-                "업무사용비율", sum.businessRatio?.let { "${(it * 100).roundToInt()}%" } ?: "-", Modifier.weight(1f),
-                valueStyle = MaterialTheme.typography.headlineMedium,
-                valueColor = MaterialTheme.colorScheme.primary,
-                caption = if (sum.unknownKm > 0) "목적 미입력 ${km(sum.unknownKm)}km 제외" else null,
-            )
+            Row(Modifier.weight(1.1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                ProgressRing((sum.businessRatio ?: 0.0).toFloat(), size = 124.dp) {
+                    Text(
+                        if (sum.businessRatio == null) "-" else "${ratioShown.roundToInt()}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("업무사용비율", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        if (sum.unknownKm > 0) "목적 미입력 ${km(sum.unknownKm)}km 제외" else "업무용 ÷ 총 주행",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
     if (rows.isEmpty()) {
@@ -339,7 +357,10 @@ private fun IncidentRow(inc: Incident, ui: UiState, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            StatusBadge(inc.status.label, tone)
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatusBadge(inc.status.label, tone)
+                IncidentSteps(inc.status, Modifier.width(120.dp), compact = true)
+            }
         }
     }
 }

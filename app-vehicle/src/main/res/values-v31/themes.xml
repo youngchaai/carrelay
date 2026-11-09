@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: 시스템이 먼저 띄우는 아이콘 화면도 앱 시작 화면과 같은 어두운 청록으로 (흰 화면 깜빡임 없이 이어짐) -->
+    <style name="Theme.CarRelay" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/carrelay_splash</item>
+        <item name="android:windowSplashScreenBackground">@color/carrelay_splash</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/carrelay_icon_background</item>
+    </style>
+</resources>

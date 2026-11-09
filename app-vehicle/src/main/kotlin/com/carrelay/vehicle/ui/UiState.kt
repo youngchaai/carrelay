@@ -16,6 +16,7 @@ import com.carrelay.core.model.DrivingSample
 import com.carrelay.core.model.Incident
 import com.carrelay.core.model.IncidentSource
 import com.carrelay.core.model.Memo
+import com.carrelay.core.model.TripPurpose
 import com.carrelay.core.model.VehicleSnapshot
 import com.carrelay.core.profile.LicenseInfo
 import com.carrelay.core.shift.DriverRecommendation
@@ -123,6 +124,24 @@ data class UiState(
 
     /** 말로 남기는 메모 (null 이면 닫힘) */
     val voiceMemo: VoiceMemoUi? = null,
+
+    /** '운전 끝내기' 직후 잠깐 보여 주는 인계 요약 (null 이면 닫힘) */
+    val handoff: HandoffSummary? = null,
+)
+
+/** 운전 끝: 이번 운전을 한눈에 (인계 완료 도장 아래에 보여 줌) */
+data class HandoffSummary(
+    val driverName: String,
+    val drivingMillis: Long,
+    val distanceKm: Double?,
+    /** 이번 운전 동안 남긴, 아직 해결 안 된 메모 */
+    val memosLeft: Int,
+    val openIncidents: Int,
+    val company: Boolean,
+    val purpose: TripPurpose?,
+    val startOdometerKm: Double?,
+    val endOdometerKm: Double?,
+    val endedAtMillis: Long,
 )
 
 /** 말로 남기는 메모 진행 상태 */
@@ -165,6 +184,10 @@ fun UiState.anyDriver(driverId: String): Driver? =
 val UiState.lastEndedSession: DriveSession? get() = sessions.lastOrNull()
 
 val UiState.isCompany: Boolean get() = usage == CarUsage.COMPANY
+
+/** 이 사람이 가장 최근 운행에서 고른 목적 (운행 목적 창에서 미리 강조) */
+fun UiState.lastPurposeOf(driverId: String): TripPurpose? =
+    sessions.lastOrNull { it.driverId == driverId && it.purpose != null }?.purpose
 
 /** 운행기록부: 끝난 운행 + 진행 중인 운행(지금 계기판 값까지) */
 fun UiState.tripLogRows(): List<TripLogRow> =

@@ -46,8 +46,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import com.carrelay.vehicle.ui.components.Brand
 import androidx.compose.ui.unit.dp
 import com.carrelay.core.handover.Briefing
 import com.carrelay.core.handover.BriefingItem
@@ -57,6 +64,7 @@ import com.carrelay.vehicle.ui.CarRelayViewModel
 import com.carrelay.vehicle.ui.components.TripPurposeDialog
 import com.carrelay.vehicle.ui.components.HandoverStamp
 import com.carrelay.vehicle.ui.isCompany
+import com.carrelay.vehicle.ui.lastPurposeOf
 import androidx.compose.animation.core.LinearEasing
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.avatarTone
@@ -188,6 +196,7 @@ fun BriefingScreen(
     if (askPurpose) {
         TripPurposeDialog(
             current = ui.activeSession?.purpose,
+            suggested = ui.lastPurposeOf(b.driver.id),
             onPick = { p ->
                 askPurpose = false
                 stampPurpose = p
@@ -235,12 +244,30 @@ private fun WelcomeView(ui: UiState, b: Briefing, carModifier: Modifier, onSkip:
     // 아바타가 살짝 커지며 등장
     val pop = remember { Animatable(0.7f) }
     LaunchedEffect(Unit) { pop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)) }
+    // 차가 아래에서 달려 올라와 멈춥니다(위에서 본 차라 앞으로 들어오는 모양).
+    val driveIn = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { driveIn.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
+    // 시작 화면과 같은 어두운 청록 바탕. 그 사람 색은 어두운 바탕에서 읽히는 밝은 쪽을 씁니다.
+    val accent = if (tone.content.luminance() > tone.container.luminance()) tone.content else tone.container
 
     Row(
         Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(Dimens.cardRadius))
-            .background(Brush.verticalGradient(listOf(tone.container, MaterialTheme.colorScheme.background)))
+            .background(Brush.verticalGradient(listOf(Brand.NightTop, Brand.Night)))
+            .drawBehind {
+                // 차 뒤로 그 사람 색의 은은한 빛, 왼쪽 위에는 브랜드 청록 빛
+                val carCenter = Offset(size.width * 0.74f, size.height * 0.52f)
+                drawCircle(
+                    Brush.radialGradient(listOf(accent.copy(alpha = 0.26f), Color.Transparent), center = carCenter, radius = size.height * 0.62f),
+                    radius = size.height * 0.62f, center = carCenter,
+                )
+                val corner = Offset(size.width * 0.1f, size.height * 0.1f)
+                drawCircle(
+                    Brush.radialGradient(listOf(Brand.Teal.copy(alpha = 0.3f), Color.Transparent), center = corner, radius = size.height * 0.7f),
+                    radius = size.height * 0.7f, center = corner,
+                )
+            }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onSkip)
             .padding(horizontal = 56.dp, vertical = 32.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -249,13 +276,13 @@ private fun WelcomeView(ui: UiState, b: Briefing, carModifier: Modifier, onSkip:
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Avatar(b.driver.name, tone, size = 152.dp, modifier = Modifier.scale(pop.value))
             Spacer(Modifier.height(12.dp))
-            Staggered(0) { Text(greetingLine, style = MaterialTheme.typography.headlineSmall, color = tone.content) }
-            Staggered(1) { Text("${b.driver.name}님, 어서 오세요", style = MaterialTheme.typography.displayMedium) }
+            Staggered(0) { Text(greetingLine, style = MaterialTheme.typography.headlineSmall, color = accent) }
+            Staggered(1) { Text("${b.driver.name}님, 어서 오세요", style = MaterialTheme.typography.displayMedium, color = Color.White) }
             Staggered(2) {
                 Text(
                     if (notable > 0) "확인할 것이 ${notable}가지 있어요" else "달라진 점이 없어요. 편하게 출발하세요",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color.White.copy(alpha = 0.75f),
                 )
             }
             if (energy != null) {
@@ -263,7 +290,7 @@ private fun WelcomeView(ui: UiState, b: Briefing, carModifier: Modifier, onSkip:
                     Text(
                         "${b.current.energyLabel} $energy%" + (b.current.rangeKm?.let { " · ${it}km 갈 수 있어요" } ?: ""),
                         style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.6f),
                     )
                 }
             }
@@ -271,13 +298,20 @@ private fun WelcomeView(ui: UiState, b: Briefing, carModifier: Modifier, onSkip:
             val fill = remember { Animatable(0f) }
             LaunchedEffect(Unit) { fill.animateTo(1f, tween(GREETING_MILLIS.toInt(), easing = LinearEasing)) }
             Spacer(Modifier.height(20.dp))
-            Box(Modifier.fillMaxWidth(0.7f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(tone.content.copy(alpha = 0.15f))) {
-                Box(Modifier.fillMaxWidth(fill.value).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(tone.content.copy(alpha = 0.6f)))
+            Box(Modifier.fillMaxWidth(0.7f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.14f))) {
+                Box(Modifier.fillMaxWidth(fill.value).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(accent.copy(alpha = 0.85f)))
             }
-            Text("누르면 바로 넘어가요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("누르면 바로 넘어가요", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.55f))
         }
         CarTopView(
-            modifier = Modifier.fillMaxHeight(0.95f).aspectRatio(CarTopViewAspect).then(carModifier),
+            modifier = Modifier
+                .fillMaxHeight(0.95f)
+                .aspectRatio(CarTopViewAspect)
+                .graphicsLayer {
+                    translationY = (1f - driveIn.value) * size.height * 0.85f
+                    alpha = (driveIn.value * 2.5f).coerceAtMost(1f)
+                }
+                .then(carModifier),
             marks = incidentMarks(ui.incidents.filter { it.isOpen }),
         )
     }

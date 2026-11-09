@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 밤 + Android 12+: values-v31 과 같게 (밤 설정이 API 단계보다 먼저 골라지므로 따로 둡니다) -->
+    <style name="Theme.CarRelay" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/carrelay_splash</item>
+        <item name="android:windowSplashScreenBackground">@color/carrelay_splash</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/carrelay_icon_background</item>
+    </style>
+</resources>

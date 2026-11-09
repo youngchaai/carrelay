@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 낮: 밝은 테마. 밤은 values-night/themes.xml -->
+    <!-- 창 바탕은 시작 화면 색: 앱 화면이 그려지기 전 잠깐도 밝게 깜빡이지 않고 시작 화면으로 이어집니다(앱 화면은 그 위를 덮음). -->
     <style name="Theme.CarRelay" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/carrelay_background</item>
+        <item name="android:windowBackground">@color/carrelay_splash</item>
     </style>
 </resources>

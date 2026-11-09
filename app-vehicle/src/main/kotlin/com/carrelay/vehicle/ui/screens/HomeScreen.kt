@@ -31,6 +31,7 @@ import com.carrelay.vehicle.ui.avatarTone
 import com.carrelay.vehicle.ui.components.TripPurposeDialog
 import com.carrelay.vehicle.ui.components.icon
 import com.carrelay.vehicle.ui.isCompany
+import com.carrelay.vehicle.ui.lastPurposeOf
 import com.carrelay.vehicle.ui.components.ActionBar
 import com.carrelay.vehicle.ui.components.Avatar
 import com.carrelay.vehicle.ui.components.IconCircle
@@ -161,6 +162,7 @@ fun HomeScreen(
     if (purposeOpen) {
         TripPurposeDialog(
             current = purpose,
+            suggested = ui.lastPurposeOf(driver.id),
             title = "운행 목적",
             onPick = { p ->
                 purposeOpen = false

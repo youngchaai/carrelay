@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import com.carrelay.vehicle.ui.components.CountdownRing
+import com.carrelay.vehicle.ui.components.StepTrack
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
@@ -230,6 +231,23 @@ private fun ShiftAdviceView(ui: UiState, advice: ShiftAdvice, onAccept: () -> Un
 private fun CareCheckIn(ui: UiState, reason: CareReason, onAnswer: () -> Unit) {
     val status = CarRelayTheme.status
     val guardian = ui.currentDriver?.guardianName ?: "보호자"
+    // 안부 확인 3단계 중 지금 어디인지 (움직임 없이 그대로 그림: 주행 중 화면)
+    val step = when (ui.careStage) {
+        CareModeMonitor.Stage.WAYPOINT_ADDED -> 1
+        CareModeMonitor.Stage.GUARDIAN_NOTIFIED -> 2
+        else -> 0
+    }
+    StepTrack(
+        steps = listOf("괜찮으세요?", "쉼터 안내", "${guardian}님께 알림"),
+        current = step,
+        color = when (step) {
+            1 -> status.warning.content
+            2 -> status.danger.content
+            else -> MaterialTheme.colorScheme.primary
+        },
+        modifier = Modifier.widthIn(max = 960.dp).fillMaxWidth(),
+        labelStyle = MaterialTheme.typography.titleLarge,
+    )
     when (ui.careStage) {
         CareModeMonitor.Stage.WAYPOINT_ADDED -> {
             IconCircle(CarIcons.Rest, status.warning, size = 120.dp, iconSize = 64.dp)

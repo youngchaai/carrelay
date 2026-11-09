@@ -12,6 +12,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -81,9 +84,15 @@ fun VehicleStatusCard(
 
 @Composable
 private fun BigNumber(label: String, value: String, color: Color, modifier: Modifier) {
+    // 큰 글씨 모드처럼 칸이 좁으면 '100%'의 %가 잘리지 않게 글자를 조금씩 줄여 한 줄에 맞춥니다.
+    val base = MaterialTheme.typography.displaySmall
+    var style by remember(base) { mutableStateOf(base) }
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        Text(value, style = MaterialTheme.typography.displaySmall, color = color, maxLines = 1)
+        Text(
+            value, style = style, color = color, maxLines = 1, softWrap = false,
+            onTextLayout = { r -> if (r.hasVisualOverflow && style.fontSize.value > 14f) style = style.copy(fontSize = style.fontSize * 0.9f) },
+        )
     }
 }
 

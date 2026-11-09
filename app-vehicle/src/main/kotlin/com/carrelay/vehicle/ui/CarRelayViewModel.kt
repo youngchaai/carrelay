@@ -22,6 +22,7 @@ import com.carrelay.core.model.CarUsage
 import com.carrelay.core.model.CarZone
 import com.carrelay.core.model.TripPurpose
 import com.carrelay.core.model.DoorEvent
+import com.carrelay.core.model.DriveSession
 import com.carrelay.core.model.Driver
 import com.carrelay.core.model.IncidentSource
 import com.carrelay.core.model.IncidentStatus
@@ -196,7 +197,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                 s.screen == Screen.DRIVING -> if (s.parkedPrompt) Screen.MEMO else Screen.HOME
                 else -> s.screen
             }
-            s.copy(drivingUi = restricted, screen = screen)
+            // 출발하면 인계 요약은 닫습니다(주행 중에는 보이지 않게).
+            s.copy(drivingUi = restricted, screen = screen, handoff = if (restricted) null else s.handoff)
         }
     }
 
@@ -366,6 +368,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun selectDriver(driverId: String) {
         val t = tracker ?: return
+        _ui.update { it.copy(handoff = null) }
         val effects = t.selectDriver(driverId, now(), _ui.value.snapshot?.odometerKm)
         if (effects == null) {
             toast("기어 P에서 선택할 수 있어요")
@@ -633,8 +636,32 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     /** '운전 끝내기': 다음 운전자에게 넘깁니다. */
     fun handOver() {
         val t = tracker ?: return
-        handleSessionEffects(t.endSession(now(), _ui.value.snapshot?.odometerKm))
-        _ui.update { it.copy(screen = Screen.PICKER, parkedPrompt = false) }
+        val effects = t.endSession(now(), _ui.value.snapshot?.odometerKm)
+        handleSessionEffects(effects)
+        // 시작의 '인수 완료' 도장과 짝: 끝에는 '인계 완료' 도장과 이번 운전 요약을 잠깐 보여 줍니다.
+        val ended = effects.filterIsInstance<SessionEffect.SessionEnded>().lastOrNull()?.session
+        _ui.update { it.copy(screen = Screen.PICKER, parkedPrompt = false, handoff = ended?.let(::handoffSummary)) }
+    }
+
+    /** 인계 요약이 끝났거나 눌러서 넘김 */
+    fun handoffDone() {
+        _ui.update { it.copy(handoff = null) }
+    }
+
+    private fun handoffSummary(s: DriveSession): HandoffSummary {
+        val endedAt = s.endedAtMillis ?: now()
+        return HandoffSummary(
+            driverName = nameOf(s.driverId),
+            drivingMillis = (endedAt - s.startedAtMillis).coerceAtLeast(0L),
+            distanceKm = s.distanceKm,
+            memosLeft = data.memos.count { !it.isResolved && it.authorId == s.driverId && it.createdAtMillis >= s.startedAtMillis },
+            openIncidents = data.incidents.count { it.isOpen },
+            company = data.usage == CarUsage.COMPANY,
+            purpose = s.purpose,
+            startOdometerKm = s.startOdometerKm,
+            endOdometerKm = s.endOdometerKm,
+            endedAtMillis = endedAt,
+        )
     }
 
     fun navigate(screen: Screen) {
