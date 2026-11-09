@@ -27,7 +27,9 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -118,7 +120,10 @@ fun CarRelayApp(vm: CarRelayViewModel) {
                             }
                         }
                     }
-                    ToastBar(message = ui.toast, onDismiss = vm::clearToast, modifier = Modifier.align(Alignment.BottomCenter))
+                    ToastBar(
+                        message = ui.toast, onDismiss = vm::clearToast, modifier = Modifier.align(Alignment.BottomCenter),
+                        actionLabel = ui.toastAction, onAction = vm::undoLast,
+                    )
                 }
             }
             // 말로 남기는 메모는 위쪽 메뉴까지 덮어, 듣는 동안 다른 화면으로 넘어가지 않게 합니다.
@@ -287,13 +292,22 @@ private fun NavItem(label: String, icon: ImageVector, selected: Boolean, compact
 }
 
 @Composable
-private fun ToastBar(message: String?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun ToastBar(
+    message: String?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {},
+) {
     // 사라지는 동안에도 글자가 남아 있도록 마지막 메시지를 기억합니다.
     var shown by remember { mutableStateOf("") }
-    LaunchedEffect(message) {
+    var shownAction by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(message, actionLabel) {
         if (message != null) {
             shown = message
-            delay(3_500)
+            shownAction = actionLabel
+            // 되돌리기가 있으면 누를 시간을 조금 더 줍니다.
+            delay(if (actionLabel != null) 6_000 else 3_500)
             onDismiss()
         }
     }
@@ -305,7 +319,8 @@ private fun ToastBar(message: String?, onDismiss: () -> Unit, modifier: Modifier
     ) {
         Row(
             Modifier
-                .padding(bottom = 8.dp)
+                // 화면 아래 큰 버튼 줄(104dp) 위에 떠서 버튼을 가리지 않게 합니다.
+                .padding(bottom = Dimens.button + Dimens.gap + 8.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(MaterialTheme.colorScheme.inverseSurface)
                 .padding(horizontal = 32.dp, vertical = 20.dp),
@@ -314,6 +329,14 @@ private fun ToastBar(message: String?, onDismiss: () -> Unit, modifier: Modifier
         ) {
             Icon(CarIcons.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.size(32.dp))
             Text(message ?: shown, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.inverseOnSurface)
+            val action = if (message != null) actionLabel else shownAction
+            if (action != null) {
+                TextButton(
+                    onClick = onAction,
+                    modifier = Modifier.heightIn(min = Dimens.touch),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.inversePrimary),
+                ) { Text(action, style = MaterialTheme.typography.labelLarge) }
+            }
         }
     }
 }

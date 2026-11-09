@@ -99,6 +99,11 @@ data class UiState(
     val careCheckIn: CareReason? = null,
     /** 안부 확인 진행 단계 (질문 중 → 쉼터 추가 → 보호자 알림) */
     val careStage: CareModeMonitor.Stage = CareModeMonitor.Stage.NORMAL,
+    /** 지금 단계에 들어온 시각과, 응답이 없으면 다음 단계로 넘어가기까지의 시간 (남은 시간 원) */
+    val careStageSinceMillis: Long = 0L,
+    val careStageWindowMillis: Long? = null,
+    /** 교대·휴식을 권하는 연속 운전 시간 (주행 화면 막대의 끝) */
+    val shiftIntervalMillis: Long? = null,
 
     val memos: List<Memo> = emptyList(),
     val sessions: List<DriveSession> = emptyList(),
@@ -113,6 +118,8 @@ data class UiState(
     val demoFastThresholds: Boolean = false,
     val voiceEnabled: Boolean = true,
     val toast: String? = null,
+    /** 스낵바 버튼 이름(예: 되돌리기). 있으면 알림이 조금 더 오래 보입니다. */
+    val toastAction: String? = null,
 
     /** 말로 남기는 메모 (null 이면 닫힘) */
     val voiceMemo: VoiceMemoUi? = null,

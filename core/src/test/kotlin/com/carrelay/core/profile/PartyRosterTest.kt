@@ -84,4 +84,14 @@ class PartyRosterTest {
         val auto = effects.single() as SessionEffect.AutoAssigned
         assertEquals(Driver.GUEST_ID, auto.session.driverId)
     }
+
+    @Test
+    fun `삭제를 되돌리면 직전 운전자도 다시 채워진다`() {
+        val t = DriverSessionTracker("lee") { "s1" }
+        t.onGear(Gear.PARK, 0, null)
+        t.forgetDriver("lee")
+        assertNull(t.lastDriverId)
+        t.rememberLastDriver("lee")
+        assertEquals("lee", t.lastDriverId)
+    }
 }

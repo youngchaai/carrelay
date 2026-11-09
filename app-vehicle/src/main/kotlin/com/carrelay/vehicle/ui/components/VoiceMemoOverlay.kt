@@ -154,8 +154,12 @@ private fun Confirm(ui: UiState, voice: VoiceMemoUi, onSave: () -> Unit, onRetry
     )
     val auto = voice.autoSaveIn
     if (auto != null) {
-        // 주행 중: 누르지 않아도 저장됩니다. 버튼은 두 개만.
-        Text("${auto}초 뒤에 저장돼요", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        // 주행 중: 누르지 않아도 저장됩니다. 남은 시간은 글자 대신 줄어드는 원으로(흘끗 봐도 알게). 버튼은 두 개만.
+        val startedAt = remember(voice.draft) { System.currentTimeMillis() - (5 - auto).coerceAtLeast(0) * 1000L }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            CountdownRing(durationMillis = 5_000L, startedAtMillis = startedAt, size = 80.dp)
+            Text("누르지 않아도 저장돼요", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Dimens.gap)) {
             SecondaryButton(
                 "취소", onClose, Modifier.weight(1f),

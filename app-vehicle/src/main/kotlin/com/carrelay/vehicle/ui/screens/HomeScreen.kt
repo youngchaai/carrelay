@@ -1,5 +1,9 @@
 package com.carrelay.vehicle.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,6 +86,18 @@ fun HomeScreen(
     var memoFor by remember { mutableStateOf<String?>(null) }
     var purposeOpen by remember { mutableStateOf(false) }
     val purpose = ui.activeSession?.purpose
+    // 해결한 메모: 줄이 그어진 뒤 사라집니다(그다음 '되돌리기' 스낵바).
+    var striking by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val strike = remember { Animatable(0f) }
+    LaunchedEffect(striking) {
+        val s = striking ?: return@LaunchedEffect
+        strike.snapTo(0f)
+        strike.animateTo(1f, tween(450))
+        delay(250)
+        onResolveMemo(s.first, s.second)
+        striking = null
+        strike.snapTo(0f)
+    }
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
         ScreenHeader(
@@ -122,6 +138,7 @@ fun HomeScreen(
                             if (memo.spoken) CarIcons.Mic else CarIcons.Memo, CarRelayTheme.status.memo,
                             "${ui.nameOf(memo.authorId)}의 메모" + (memo.toDriverId?.let { "(${ui.nameOf(it)}에게)" } ?: "") + ": ${memo.text}",
                             actionLabel = "해결했어요", onClick = { memoFor = memo.id },
+                            struck = if (striking?.first == memo.id) strike.value else 0f,
                         )
                     }
                     if (openIncidents.isEmpty() && unresolved.isEmpty()) {
@@ -168,7 +185,7 @@ fun HomeScreen(
             memoText = memo.text,
             onDismiss = { memoFor = null },
             onResolve = { note ->
-                onResolveMemo(memo.id, note)
+                striking = memo.id to note
                 memoFor = null
             },
         )

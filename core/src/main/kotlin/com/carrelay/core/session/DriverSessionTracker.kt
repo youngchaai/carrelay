@@ -149,6 +149,15 @@ class DriverSessionTracker(
         if (s is SessionState.AwaitingDriver && s.lastDriverId == driverId) state = SessionState.AwaitingDriver(null)
     }
 
+    /** 대기 중일 때 '직전 운전자' (없으면 null) */
+    val lastDriverId: String? get() = (state as? SessionState.AwaitingDriver)?.lastDriverId
+
+    /** 삭제를 되돌릴 때: 대기 중이고 직전 운전자가 비어 있으면 다시 채웁니다. */
+    fun rememberLastDriver(driverId: String) {
+        val s = state
+        if (s is SessionState.AwaitingDriver && s.lastDriverId == null) state = SessionState.AwaitingDriver(driverId)
+    }
+
     /** 회사 차: 지금 운전 구간의 운행 목적을 정합니다(출발 전 선택, 주차 중 변경). */
     fun setPurpose(purpose: TripPurpose?) {
         state = when (val s = state) {

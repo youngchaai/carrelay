@@ -27,9 +27,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextLayoutResult
+import com.carrelay.vehicle.ui.theme.CarIcons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
@@ -270,25 +277,31 @@ fun NoticeRow(
     detail: String? = null,
     actionLabel: String? = null,
     onClick: (() -> Unit)? = null,
+    /** 해결 처리 중: 0..1 만큼 글자에 줄이 그어지고 옅어집니다 */
+    struck: Float = 0f,
 ) {
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val textColor = if (emphasized) tone.content else MaterialTheme.colorScheme.onSurface
     SurfaceCard(
-        modifier.fillMaxWidth(),
+        modifier.fillMaxWidth().alpha(1f - 0.45f * struck),
         container = if (emphasized) tone.container else MaterialTheme.colorScheme.surface,
         border = if (emphasized) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         contentPadding = 22.dp,
-        onClick = onClick,
+        onClick = if (struck > 0f) null else onClick,
     ) {
         Row(
             Modifier.heightIn(min = 68.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            IconCircle(icon, tone, size = 60.dp, iconSize = 32.dp)
+            IconCircle(if (struck >= 1f) CarIcons.CheckCircle else icon, tone, size = 60.dp, iconSize = 32.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text,
                     style = MaterialTheme.typography.titleLarge,
-                    color = if (emphasized) tone.content else MaterialTheme.colorScheme.onSurface,
+                    color = textColor,
+                    onTextLayout = { layout = it },
+                    modifier = Modifier.strikeThrough(struck, { layout }, textColor),
                 )
                 if (detail != null) {
                     Text(
@@ -298,7 +311,7 @@ fun NoticeRow(
                     )
                 }
             }
-            if (actionLabel != null) {
+            if (actionLabel != null && struck <= 0f) {
                 Text(
                     "$actionLabel ›",
                     style = MaterialTheme.typography.labelLarge,

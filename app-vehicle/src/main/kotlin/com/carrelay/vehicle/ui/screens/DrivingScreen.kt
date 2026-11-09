@@ -9,12 +9,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.carrelay.vehicle.ui.components.CountdownRing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
@@ -140,6 +147,11 @@ private fun DrivingStatus(ui: UiState, onVoiceMemo: () -> Unit) {
         }
     }
     val drivingCard: @Composable (Modifier) -> Unit = { m ->
+        // 교대·휴식 권유까지 차오르는 막대: 권유가 갑자기 뜨지 않고 미리 보입니다(1초에 한 번만 조금씩 늘어남).
+        val interval = ui.shiftIntervalMillis ?: (120 * 60_000L)
+        val fill = (ui.continuousMillis.toFloat() / interval).coerceIn(0f, 1f)
+        val leftMillis = (interval - ui.continuousMillis).coerceAtLeast(0L)
+        val near = fill >= 0.75f
         SurfaceCard(m.heightIn(min = 260.dp), contentPadding = 36.dp) {
             StatBlock(
                 label = "연속 운전",
@@ -148,7 +160,21 @@ private fun DrivingStatus(ui: UiState, onVoiceMemo: () -> Unit) {
                 valueStyle = if (low) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium,
                 labelStyle = MaterialTheme.typography.labelLarge,
                 captionStyle = MaterialTheme.typography.bodyLarge,
-                caption = if (ui.continuousMillis >= 90 * 60_000L) "곧 쉬어 갈 시간이에요" else null,
+                valueColor = if (near) warning.content else MaterialTheme.colorScheme.onSurface,
+            )
+            Box(
+                Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(fill).fillMaxHeight().clip(RoundedCornerShape(7.dp))
+                        .background(if (near) warning.content else MaterialTheme.colorScheme.primary),
+                )
+            }
+            Text(
+                if (leftMillis == 0L) "쉬어 갈 시간이에요" else "쉬어 가기까지 ${KoreanText.duration(leftMillis)}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (near) warning.content else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -232,4 +258,20 @@ private fun CareCheckIn(ui: UiState, reason: CareReason, onAnswer: () -> Unit) {
         "괜찮아요", onAnswer, Modifier.widthIn(min = 800.dp),
         icon = CarIcons.Check, height = 160.dp, textStyle = MaterialTheme.typography.headlineLarge,
     )
+    // 응답이 없으면 다음 단계로 넘어가기까지 남은 시간 (재촉하지 않게 차분한 색, 원 하나와 짧은 한 줄)
+    val window = ui.careStageWindowMillis
+    if (window != null && ui.careStage != CareModeMonitor.Stage.GUARDIAN_NOTIFIED) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            CountdownRing(
+                durationMillis = window, startedAtMillis = ui.careStageSinceMillis, size = 64.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textStyle = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                if (ui.careStage == CareModeMonitor.Stage.ASKING) "응답이 없으면 가까운 졸음쉼터로 안내해요"
+                else "응답이 없으면 ${guardian}님께 알려요",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

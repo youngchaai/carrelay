@@ -88,6 +88,10 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     private var returnAfterReport: Screen = Screen.HOME
     /** 프로필 화면을 닫으면 돌아갈 화면 */
     private var returnAfterProfile: Screen = Screen.SETTINGS
+    /** 스낵바 '되돌리기'를 누르면 할 일 (알림이 사라지면 지움) */
+    private var undoAction: (() -> Unit)? = null
+    /** 지금 케어 모드 판단 기준 (안부 확인 응답 시간 표시용) */
+    private var careCfg = CareModeMonitor.Config()
 
     private val _ui = MutableStateFlow(UiState(sourceName = gateway.sourceName, isSimulated = gateway.isSimulated))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -101,7 +105,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         val t = DriverSessionTracker(data.lastDriverId) { UUID.randomUUID().toString() }
         data.activeSession?.let { t.restore(it) }
         tracker = t
-        careMonitor = CareModeMonitor(careConfig(data.demoFastThresholds))
+        careMonitor = newCareMonitor(data.demoFastThresholds)
 
         gateway.start()
         container.uxMonitor.start()
@@ -234,7 +238,20 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private fun handleCareEffects(effects: List<CareEffect>, driver: Driver) {
-        _ui.update { it.copy(careStage = careMonitor.stage) }
+        // 단계가 바뀐 시각과 그 단계의 응답 시간을 함께 넘겨, 화면에서 남은 시간을 원으로 보여 줍니다.
+        val stage = careMonitor.stage
+        _ui.update {
+            if (it.careStage == stage) it
+            else it.copy(
+                careStage = stage,
+                careStageSinceMillis = now(),
+                careStageWindowMillis = when (stage) {
+                    CareModeMonitor.Stage.ASKING -> careCfg.responseTimeoutMillis
+                    CareModeMonitor.Stage.WAYPOINT_ADDED -> careCfg.guardianAfterWaypointMillis
+                    else -> null
+                },
+            )
+        }
         if (effects.isEmpty()) return
         val at = now()
         for (effect in effects) {
@@ -518,15 +535,25 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun resolveMemo(memoId: String, note: String) {
         val by = currentDriver()?.id ?: Driver.GUEST_ID
+        val before = data.memos.firstOrNull { it.id == memoId } ?: return
         data = data.copy(memos = MemoBoard.resolve(data.memos, memoId, by, note, now()))
-        val b = _ui.value.briefing
-        if (b != null) {
-            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now(), data.incidents)
-            _ui.update { it.copy(briefing = rebuilt) }
-        }
-        toast("해결로 기록했어요. 차량 경고등 상태는 따로 표시돼요")
+        rebuildBriefing()
+        toast("메모를 해결로 기록했어요", undo = {
+            // 해결만 되돌립니다(그사이 다른 메모가 바뀌어도 그대로 둠).
+            data = data.copy(memos = data.memos.map { if (it.id == memoId) before else it })
+            rebuildBriefing()
+            toast("메모를 다시 '해결 전'으로 돌렸어요")
+            publishData()
+            persist()
+        })
         publishData()
         persist()
+    }
+
+    private fun rebuildBriefing() {
+        val b = _ui.value.briefing ?: return
+        val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now(), data.incidents)
+        _ui.update { it.copy(briefing = rebuilt) }
     }
 
     // ── 사고·파손 신고 / 인수 점검 ─────────────────────────
@@ -586,13 +613,19 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun updateIncidentStatus(id: String, status: IncidentStatus, note: String) {
         val by = currentDriver()?.id ?: Driver.GUEST_ID
+        val before = data.incidents.firstOrNull { it.id == id } ?: return
         data = data.copy(incidents = IncidentLog.updateStatus(data.incidents, id, status, note, by, now()))
-        val b = _ui.value.briefing
-        if (b != null) {
-            val rebuilt = HandoverBriefingBuilder.build(b.driver, b.current, b.lastSeen, data.memos, ::nameOf, now(), data.incidents)
-            _ui.update { it.copy(briefing = rebuilt) }
-        }
-        toast(if (status == IncidentStatus.RESOLVED) "처리 완료로 바꿨어요" else "${KoreanText.toward(status.label)} 바꿨어요")
+        rebuildBriefing()
+        toast(
+            if (status == IncidentStatus.RESOLVED) "처리 완료로 바꿨어요" else "${KoreanText.toward(status.label)} 바꿨어요",
+            undo = {
+                data = data.copy(incidents = data.incidents.map { if (it.id == id) before else it })
+                rebuildBriefing()
+                toast("${KoreanText.toward(before.status.label)} 되돌렸어요")
+                publishData()
+                persist()
+            },
+        )
         publishData()
         persist()
     }
@@ -688,6 +721,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
         val r = PartyRoster.remove(data.drivers, data.formerDrivers, driverId)
+        val before = data
+        val wasLast = tracker?.lastDriverId == driverId
         tracker?.forgetDriver(driverId)
         data = data.copy(
             drivers = r.drivers,
@@ -696,7 +731,20 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
             lastSeen = data.lastSeen - driverId,
             lastDriverId = data.lastDriverId?.takeIf { it != driverId },
         )
-        toast("${name}님을 삭제했어요. 지난 기록에는 이름이 남아요")
+        toast("${name}님을 삭제했어요. 지난 기록에는 이름이 남아요", undo = {
+            // 사람·색·컨디션·마지막 확인 상태를 삭제 전으로. 그사이 쌓인 운전 기록·메모는 그대로 둡니다.
+            data = data.copy(
+                drivers = before.drivers,
+                formerDrivers = data.formerDrivers.filter { it.id != driverId },
+                conditions = before.conditions,
+                lastSeen = data.lastSeen + listOfNotNull(before.lastSeen[driverId]?.let { driverId to it }),
+                lastDriverId = data.lastDriverId ?: before.lastDriverId,
+            )
+            if (wasLast) tracker?.rememberLastDriver(driverId)
+            toast("${name}님을 다시 넣었어요")
+            publishData()
+            persist()
+        })
         closeProfile()
         publishData()
         persist()
@@ -720,7 +768,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setDemoFast(enabled: Boolean) {
         data = data.copy(demoFastThresholds = enabled)
-        careMonitor = CareModeMonitor(careConfig(enabled))
+        careMonitor = newCareMonitor(enabled)
         publishData()
         persist()
     }
@@ -761,7 +809,7 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         tracker = t
         lastGear = gateway.driving.value.gear
         resetRealtimeMonitors()
-        careMonitor = CareModeMonitor(careConfig(false))
+        careMonitor = newCareMonitor(false)
         _ui.update { it.copy(screen = Screen.PICKER, briefing = null, askingDriverChange = false, parkedPrompt = false, profileEdit = null) }
         publishData()
         persist()
@@ -770,7 +818,18 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
 
     fun onPermissionsChanged() = gateway.onPermissionsChanged()
 
-    fun clearToast() = _ui.update { it.copy(toast = null) }
+    fun clearToast() {
+        undoAction = null
+        _ui.update { it.copy(toast = null, toastAction = null) }
+    }
+
+    /** 스낵바의 '되돌리기' */
+    fun undoLast() {
+        val action = undoAction ?: return
+        undoAction = null
+        _ui.update { it.copy(toast = null, toastAction = null) }
+        action()
+    }
 
     // ── 내부 도우미 ───────────────────────────────────────
 
@@ -805,6 +864,8 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
                 formerDrivers = data.formerDrivers,
                 currentDriver = session?.let { s -> driverById(s.driverId) },
                 activeSession = session,
+                // 이 운전자에게 교대·휴식을 권하는 연속 운전 시간 (주행 화면의 막대 끝)
+                shiftIntervalMillis = session?.let { s -> shiftAdvisor.intervalFor(driverById(s.driverId), data.conditions[s.driverId]) },
                 sessionConfirmed = session?.confirmed ?: true,
                 lastDriverId = session?.driverId ?: awaitingLast ?: data.lastDriverId,
                 canSelectDriver = t?.canSelectDriver ?: true,
@@ -827,7 +888,11 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
         container.appScope.launch { container.store.save(snapshot) }
     }
 
-    private fun toast(message: String) = _ui.update { it.copy(toast = message) }
+    /** 알림 한 줄. [undo] 를 주면 '되돌리기' 버튼이 붙은 스낵바가 됩니다(조금 더 오래 보임). */
+    private fun toast(message: String, undo: (() -> Unit)? = null) {
+        undoAction = undo
+        _ui.update { it.copy(toast = message, toastAction = if (undo != null) "되돌리기" else null) }
+    }
 
     private fun currentDriver(): Driver? = tracker?.currentSession?.let { driverById(it.driverId) }
 
@@ -839,6 +904,11 @@ class CarRelayViewModel(private val container: AppContainer) : ViewModel() {
     private fun nameOf(id: String): String = driverById(id).name
 
     private fun now(): Long = System.currentTimeMillis()
+
+    private fun newCareMonitor(fast: Boolean): CareModeMonitor {
+        careCfg = careConfig(fast)
+        return CareModeMonitor(careCfg)
+    }
 
     private fun careConfig(fast: Boolean): CareModeMonitor.Config =
         if (fast) {

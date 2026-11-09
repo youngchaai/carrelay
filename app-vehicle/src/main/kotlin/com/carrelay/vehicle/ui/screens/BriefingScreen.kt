@@ -55,7 +55,9 @@ import com.carrelay.core.model.IncidentStatus
 import com.carrelay.core.model.TripPurpose
 import com.carrelay.vehicle.ui.CarRelayViewModel
 import com.carrelay.vehicle.ui.components.TripPurposeDialog
+import com.carrelay.vehicle.ui.components.HandoverStamp
 import com.carrelay.vehicle.ui.isCompany
+import androidx.compose.animation.core.LinearEasing
 import com.carrelay.vehicle.ui.UiState
 import com.carrelay.vehicle.ui.avatarTone
 import com.carrelay.vehicle.ui.blockTouches
@@ -109,6 +111,21 @@ fun BriefingScreen(
     var openIncidentId by remember { mutableStateOf<String?>(null) }
     // 회사 차: '확인했어요'(인수 점검 끝) 다음에 운행 목적을 한 번 고릅니다.
     var askPurpose by remember { mutableStateOf(false) }
+    // 인수 점검이 끝나면 체크와 '인수 완료' 도장을 잠깐 보여 준 뒤 넘어갑니다.
+    var stamping by remember { mutableStateOf(false) }
+    var stampPurpose by remember { mutableStateOf<TripPurpose?>(null) }
+    // 해결한 메모: 줄이 그어진 뒤에 사라집니다.
+    var striking by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val strike = remember { Animatable(0f) }
+    LaunchedEffect(striking) {
+        val s = striking ?: return@LaunchedEffect
+        strike.snapTo(0f)
+        strike.animateTo(1f, tween(450))
+        delay(250)
+        onResolve(s.first, s.second)
+        striking = null
+        strike.snapTo(0f)
+    }
     val incidentsById = ui.incidents.associateBy { it.id }
 
     if (ui.greeting) {
@@ -140,9 +157,18 @@ fun BriefingScreen(
                         carModifier = carModifier,
                         onReplay = onReplay,
                         onReportIssue = onReportIssue,
-                        onAcknowledge = { if (ui.isCompany) askPurpose = true else onAcknowledge(null) },
+                        onAcknowledge = {
+                            if (ui.isCompany) {
+                                askPurpose = true
+                            } else {
+                                stampPurpose = null
+                                stamping = true
+                            }
+                        },
                         onIncident = { openIncidentId = it },
                         onMemo = { resolvingMemoId = it },
+                        strikeMemoId = striking?.first,
+                        strikeProgress = strike.value,
                     )
                 }
             }
@@ -154,7 +180,7 @@ fun BriefingScreen(
             memoText = ui.memos.firstOrNull { it.id == memoId }?.text ?: "메모",
             onDismiss = { resolvingMemoId = null },
             onResolve = { note ->
-                onResolve(memoId, note)
+                striking = memoId to note
                 resolvingMemoId = null
             },
         )
@@ -164,9 +190,20 @@ fun BriefingScreen(
             current = ui.activeSession?.purpose,
             onPick = { p ->
                 askPurpose = false
-                onAcknowledge(p)
+                stampPurpose = p
+                stamping = true
             },
             onDismiss = { askPurpose = false },
+        )
+    }
+    if (stamping) {
+        HandoverStamp(
+            driverName = b.driver.name,
+            timeText = remember { java.time.LocalTime.now().let { "%02d:%02d".format(it.hour, it.minute) } },
+            onDone = {
+                stamping = false
+                onAcknowledge(stampPurpose)
+            },
         )
     }
     openIncidentId?.let(incidentsById::get)?.let { inc ->
@@ -230,6 +267,14 @@ private fun WelcomeView(ui: UiState, b: Briefing, carModifier: Modifier, onSkip:
                     )
                 }
             }
+            // 곧 브리핑으로 넘어간다는 것을 차오르는 선으로 (누르면 바로 넘어감)
+            val fill = remember { Animatable(0f) }
+            LaunchedEffect(Unit) { fill.animateTo(1f, tween(GREETING_MILLIS.toInt(), easing = LinearEasing)) }
+            Spacer(Modifier.height(20.dp))
+            Box(Modifier.fillMaxWidth(0.7f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(tone.content.copy(alpha = 0.15f))) {
+                Box(Modifier.fillMaxWidth(fill.value).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(tone.content.copy(alpha = 0.6f)))
+            }
+            Text("누르면 바로 넘어가요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         CarTopView(
             modifier = Modifier.fillMaxHeight(0.95f).aspectRatio(CarTopViewAspect).then(carModifier),
@@ -259,6 +304,8 @@ private fun BriefingBody(
     onAcknowledge: () -> Unit,
     onIncident: (String) -> Unit,
     onMemo: (String) -> Unit,
+    strikeMemoId: String? = null,
+    strikeProgress: Float = 0f,
 ) {
     val incidentsById = ui.incidents.associateBy { it.id }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
@@ -285,6 +332,7 @@ private fun BriefingBody(
                                 incidentDetail = inc?.let { "${ui.nameOf(it.reporterId)} 신고 · ${formatDateTime(it.createdAtMillis)}" },
                                 onIncident = onIncident,
                                 onMemo = onMemo,
+                                struck = if (item.memoId != null && item.memoId == strikeMemoId) strikeProgress else 0f,
                             )
                         }
                     }
@@ -311,6 +359,7 @@ private fun BriefingNotice(
     incidentDetail: String?,
     onIncident: (String) -> Unit,
     onMemo: (String) -> Unit,
+    struck: Float = 0f,
 ) {
     val s = CarRelayTheme.status
     // 경고 색은 경고등 심각도로 정합니다. priority = 기준값 + severity
@@ -330,6 +379,7 @@ private fun BriefingNotice(
         BriefingItem.Kind.NEW_MEMO, BriefingItem.Kind.UNRESOLVED_MEMO -> NoticeRow(
             CarIcons.Memo, s.memo, item.message,
             actionLabel = "해결했어요", onClick = item.memoId?.let { id -> { onMemo(id) } },
+            struck = struck,
         )
         BriefingItem.Kind.RESOLVED_MEMO -> NoticeRow(CarIcons.CheckCircle, s.ok, item.message)
         BriefingItem.Kind.STALE_DATA -> NoticeRow(CarIcons.Clock, s.warning, item.message)
