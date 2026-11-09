@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +33,6 @@ import com.carrelay.vehicle.ui.isCompany
 import com.carrelay.vehicle.ui.lastPurposeOf
 import com.carrelay.vehicle.ui.components.ActionBar
 import com.carrelay.vehicle.ui.components.Avatar
-import com.carrelay.vehicle.ui.components.IconCircle
 import com.carrelay.vehicle.ui.components.IncidentStatusDialog
 import com.carrelay.vehicle.ui.components.NoticeRow
 import com.carrelay.vehicle.ui.components.PrimaryButton
@@ -45,7 +43,6 @@ import com.carrelay.vehicle.ui.components.SecondaryButton
 import com.carrelay.vehicle.ui.components.SectionTitle
 import com.carrelay.vehicle.ui.components.VehicleStatusCard
 import com.carrelay.vehicle.ui.components.incidentTone
-import com.carrelay.vehicle.ui.components.neutralTone
 import com.carrelay.vehicle.ui.formatDateTime
 import com.carrelay.vehicle.ui.nameOf
 import com.carrelay.vehicle.ui.theme.CarIcons
@@ -68,19 +65,8 @@ fun HomeScreen(
     onUpdateIncident: (id: String, IncidentStatus, note: String) -> Unit,
     onSetPurpose: (TripPurpose) -> Unit = {},
 ) {
-    val driver = ui.currentDriver
-    if (driver == null) {
-        Column(
-            Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(Dimens.gap, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            IconCircle(CarIcons.Person, neutralTone(), size = 120.dp, iconSize = 60.dp)
-            Text("누가 운전하는지 골라 주세요", style = MaterialTheme.typography.headlineMedium)
-            PrimaryButton("운전자 고르기", onChangeDriver, Modifier.widthIn(min = 480.dp), icon = CarIcons.Person)
-        }
-        return
-    }
+    // 운전자가 없으면 CarRelayApp 이 이 화면 대신 운전자 선택 화면을 보여 줍니다.
+    val driver = ui.currentDriver ?: return
     val unresolved = ui.memos.filter { !it.isResolved }.sortedByDescending { it.createdAtMillis }
     val openIncidents = IncidentLog.open(ui.incidents)
     var incidentFor by remember { mutableStateOf<String?>(null) }

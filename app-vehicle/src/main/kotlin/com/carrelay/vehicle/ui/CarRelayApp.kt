@@ -187,17 +187,23 @@ private fun ScreenContent(ui: UiState, vm: CarRelayViewModel) {
             onUpdateIncident = vm::updateIncidentStatus,
             onGreetingDone = vm::greetingDone,
         )
-        Screen.HOME -> HomeScreen(
-            ui = ui,
-            onLeaveMemo = { vm.navigate(Screen.MEMO) },
-            onChangeDriver = { vm.navigate(Screen.PICKER) },
-            onReplayBriefing = vm::replayBriefing,
-            onHandOver = vm::handOver,
-            onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
-            onResolveMemo = vm::resolveMemo,
-            onUpdateIncident = vm::updateIncidentStatus,
-            onSetPurpose = vm::setTripPurpose,
-        )
+        // 아무도 운전하지 않을 때의 '홈'은 운전자 선택 화면 그대로입니다.
+        // ("운전자 고르기" 버튼 하나만 있는 빈 화면을 한 번 더 거치지 않게)
+        Screen.HOME -> if (ui.currentDriver == null) {
+            DriverPickerScreen(ui, onSelect = vm::selectDriver, onKeepSame = vm::keepSameDriver, onAdd = { vm.openProfile(null) })
+        } else {
+            HomeScreen(
+                ui = ui,
+                onLeaveMemo = { vm.navigate(Screen.MEMO) },
+                onChangeDriver = { vm.navigate(Screen.PICKER) },
+                onReplayBriefing = vm::replayBriefing,
+                onHandOver = vm::handOver,
+                onReport = { vm.startReport(IncidentSource.AFTER_DRIVE) },
+                onResolveMemo = vm::resolveMemo,
+                onUpdateIncident = vm::updateIncidentStatus,
+                onSetPurpose = vm::setTripPurpose,
+            )
+        }
         Screen.MEMO -> MemoScreen(
             ui = ui,
             onPreset = vm::addMemo,
