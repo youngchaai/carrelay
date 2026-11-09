@@ -133,7 +133,7 @@ private fun ChoiceTile(text: String, selected: Boolean, tone: StatusTone, modifi
         contentPadding = 24.dp,
         onClick = onClick,
     ) {
-        Row(Modifier.fillMaxHeight(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.fillMaxHeight(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             if (selected) IconCircle(CarIcons.Check, StatusTone(tone.container, tone.content), size = 44.dp, iconSize = 26.dp)
             Text(text, style = MaterialTheme.typography.headlineSmall, color = if (selected) tone.content else MaterialTheme.colorScheme.onSurface)
         }

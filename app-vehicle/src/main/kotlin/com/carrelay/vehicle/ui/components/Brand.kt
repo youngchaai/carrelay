@@ -70,7 +70,7 @@ object Brand {
 val Montserrat = FontFamily(Font(R.font.montserrat_semibold, FontWeight.SemiBold))
 
 /** 넓은 자간의 대문자 워드마크 */
-fun wordmarkStyle(size: TextUnit, spacing: TextUnit = 0.3.em) = TextStyle(
+fun wordmarkStyle(size: TextUnit, spacing: TextUnit = 0.24.em) = TextStyle(
     fontFamily = Montserrat,
     fontWeight = FontWeight.SemiBold,
     fontSize = size,
@@ -103,11 +103,11 @@ fun BrandLockup(compact: Boolean, modifier: Modifier = Modifier) {
     Row(
         modifier.semantics { contentDescription = "카릴레이" },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         BrandMark(40.dp)
         if (!compact) {
-            Text(Brand.NAME, style = wordmarkStyle(26.sp, 0.22.em), color = MaterialTheme.colorScheme.onSurface)
+            Text(Brand.NAME, style = wordmarkStyle(26.sp, 0.14.em), color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -159,10 +159,10 @@ fun LaunchSplash(ready: Boolean, onDone: () -> Unit, onLeaving: () -> Unit = {})
             .alpha(fade.value)
             .background(Brush.verticalGradient(listOf(Brand.NightTop, Brand.Night)))
             .drawBehind {
-                // 가운데 은은한 청록 빛
+                // 가운데 아주 옅은 청록 빛 (번진 색 얼룩처럼 보이지 않게 약하게)
                 drawCircle(
                     Brush.radialGradient(
-                        listOf(Brand.Teal.copy(alpha = 0.38f), Color.Transparent),
+                        listOf(Brand.Teal.copy(alpha = 0.16f), Color.Transparent),
                         center = Offset(size.width / 2, size.height * 0.46f),
                         radius = size.minDimension * 0.62f,
                     ),
@@ -189,8 +189,8 @@ fun LaunchSplash(ready: Boolean, onDone: () -> Unit, onLeaving: () -> Unit = {})
                             Offset(x - tail, y), Offset(x, y), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round,
                         )
                         drawCircle(
-                            Brush.radialGradient(listOf(Color.White.copy(alpha = streak.value), Brand.Mint.copy(alpha = 0.5f * streak.value), Color.Transparent), center = Offset(x, y), radius = 34.dp.toPx()),
-                            radius = 34.dp.toPx(), center = Offset(x, y),
+                            Brush.radialGradient(listOf(Color.White.copy(alpha = streak.value), Brand.Mint.copy(alpha = 0.35f * streak.value), Color.Transparent), center = Offset(x, y), radius = 20.dp.toPx()),
+                            radius = 20.dp.toPx(), center = Offset(x, y),
                         )
                     }
                     // 지나간 뒤 오른쪽으로 남는 가는 선
@@ -216,7 +216,8 @@ fun LaunchSplash(ready: Boolean, onDone: () -> Unit, onLeaving: () -> Unit = {})
             }
             Text(
                 Brand.TAGLINE,
-                style = wordmarkStyle(22.sp, 0.42.em),
+                // 자간을 너무 벌린 대문자 문구는 AI 화면 같은 느낌이라 로고보다 조금만 넓게
+                style = wordmarkStyle(22.sp, 0.16.em),
                 color = Color.White.copy(alpha = 0.6f),
                 modifier = Modifier
                     .alpha(tagline.value)

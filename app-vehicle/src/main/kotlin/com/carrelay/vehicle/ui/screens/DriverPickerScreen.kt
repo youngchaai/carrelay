@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,6 +69,7 @@ import com.carrelay.vehicle.ui.components.SurfaceCard
 import com.carrelay.vehicle.ui.components.VehicleStatusCard
 import com.carrelay.vehicle.ui.components.conditionTone
 import com.carrelay.vehicle.ui.components.primaryTone
+import com.carrelay.vehicle.ui.formatKm
 import com.carrelay.vehicle.ui.formatWhen
 import com.carrelay.vehicle.ui.isCompany
 import com.carrelay.vehicle.ui.lastEndedSession
@@ -187,7 +189,7 @@ private fun HandoverFacts(ui: UiState) {
     val last = ui.lastEndedSession
     val memos = ui.memos.count { !it.isResolved }
     val open = ui.incidents.count { it.isOpen }
-    Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (last != null) {
             FactRow(
                 CarIcons.Clock, MaterialTheme.colorScheme.onSurfaceVariant,
@@ -293,7 +295,8 @@ private fun DriverCard(driver: Driver, ui: UiState, index: Int, chosen: String?,
                 scaleY = lift
             }
             .clip(shape)
-            .background(Brush.verticalGradient(0f to tone.container, 0.75f to MaterialTheme.colorScheme.surface))
+            // 그 사람 색은 위쪽에 옅게만 (넓게 번지는 색은 줄임)
+            .background(Brush.verticalGradient(0f to lerp(MaterialTheme.colorScheme.surface, tone.container, 0.7f), 0.5f to MaterialTheme.colorScheme.surface))
             .border(
                 when {
                     isChosen -> BorderStroke(4.dp, MaterialTheme.colorScheme.primary)
@@ -303,8 +306,8 @@ private fun DriverCard(driver: Driver, ui: UiState, index: Int, chosen: String?,
                 shape,
             )
             .clickable(enabled = enabled && chosen == null) { onSelect(driver.id) }
-            .padding(horizontal = 22.dp, vertical = 22.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Avatar(if (driver.isGuest) "?" else driver.name, tone, size = 88.dp)
@@ -331,13 +334,13 @@ private fun DriverCard(driver: Driver, ui: UiState, index: Int, chosen: String?,
             }
         }
         // 지난 운전: 언제, 얼마나. 게스트는 기록이 어떻게 남는지 알려 줍니다.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(CarIcons.Clock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
             Text(
                 when {
                     driver.isGuest -> "운전 기록은 게스트로 남아요"
                     lastDrive != null -> "지난 운전 ${formatWhen(lastDrive.endedAtMillis ?: lastDrive.startedAtMillis)}" +
-                        (lastDrive.distanceKm?.takeIf { it > 0.0 }?.let { " · ${KoreanText.distance(it)}" } ?: "")
+                        (lastDrive.distanceKm?.takeIf { it > 0.0 }?.let { " · ${formatKm(it)}" } ?: "")
                     else -> "아직 운전 기록이 없어요"
                 },
                 style = MaterialTheme.typography.bodyLarge,

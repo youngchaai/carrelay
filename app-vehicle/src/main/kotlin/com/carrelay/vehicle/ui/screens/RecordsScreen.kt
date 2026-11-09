@@ -54,6 +54,7 @@ import com.carrelay.vehicle.ui.components.SurfaceCard
 import com.carrelay.vehicle.ui.components.incidentTone
 import com.carrelay.vehicle.ui.components.neutralTone
 import com.carrelay.vehicle.ui.formatDateTime
+import com.carrelay.vehicle.ui.formatKm
 import com.carrelay.vehicle.ui.nameOf
 import com.carrelay.vehicle.ui.theme.CarIcons
 import com.carrelay.vehicle.ui.theme.CarRelayTheme
@@ -248,20 +249,20 @@ private fun DriverRecords(ui: UiState, title: String) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Avatar(driver.name, if (removed) neutralTone() else ui.avatarTone(driver.id), size = 72.dp)
                 Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(driver.name, style = MaterialTheme.typography.titleLarge)
                         if (removed) StatusBadge("삭제됨", neutralTone())
                     }
                     Text("운전 ${sessions.size}회 · ${KoreanText.duration(duration)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(KoreanText.distance(distance), style = MaterialTheme.typography.headlineMedium)
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(formatKm(distance), style = MaterialTheme.typography.headlineMedium)
                     if (unconfirmed > 0) StatusBadge("운전자 확인 필요 ${unconfirmed}회", status.warning)
                 }
             }
             // 0회는 적지 않습니다. 있는 것만 보여 줘야 눈에 들어옵니다.
             if (decel + accel + stats.selfReported + stats.foundAfterMyDrive > 0) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (decel > 0) StatusBadge("급정거 ${decel}회", status.warning)
                     if (accel > 0) StatusBadge("급가속 ${accel}회", status.warning)
                     if (stats.selfReported > 0) StatusBadge("직접 신고 ${stats.selfReported}건", status.info)
@@ -357,7 +358,7 @@ private fun IncidentRow(inc: Incident, ui: UiState, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusBadge(inc.status.label, tone)
                 IncidentSteps(inc.status, Modifier.width(120.dp), compact = true)
             }

@@ -14,6 +14,12 @@ fun formatDateTime(epochMillis: Long): String = dateTimeFormat.format(Instant.of
 private val hourMinute = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
 private val monthDay = DateTimeFormatter.ofPattern("M/d").withZone(ZoneId.systemDefault())
 
+/**
+ * 달린 거리: 화면 어디서나 같은 모양("18.4km", "1,234.5km"). 운행기록부 표와 자릿수를 맞춥니다.
+ * (차가 알려 주는 '갈 수 있는 거리'는 어림값이라 그대로 정수로 둡니다.)
+ */
+fun formatKm(km: Double): String = String.format(java.util.Locale.KOREA, "%,.1fkm", km)
+
 /** "오늘 08:10" / "어제 19:30" / "3일 전" / "10/28" — 사람이 말하듯 짧게 */
 fun formatWhen(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
     val zone = ZoneId.systemDefault()

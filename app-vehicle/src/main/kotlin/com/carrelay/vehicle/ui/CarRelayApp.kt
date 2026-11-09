@@ -256,7 +256,7 @@ private fun TopBar(
                 Modifier
                     .clip(RoundedCornerShape(36.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(start = 8.dp, end = 20.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = 8.dp, end = 20.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -297,9 +297,9 @@ private fun NavItem(label: String, icon: ImageVector, selected: Boolean, compact
             .clip(RoundedCornerShape(20.dp))
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background)
             .clickable(role = Role.Tab, onClick = onClick)
-            .padding(horizontal = if (compact) 14.dp else 22.dp),
+            .padding(horizontal = if (compact) 12.dp else 24.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(32.dp))
         Text(label, style = MaterialTheme.typography.labelLarge, color = content)
@@ -342,7 +342,7 @@ private fun ToastBar(
                 .background(MaterialTheme.colorScheme.inverseSurface)
                 .padding(horizontal = 32.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(CarIcons.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.size(32.dp))
             Text(message ?: shown, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.inverseOnSurface)

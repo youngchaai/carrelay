@@ -318,7 +318,7 @@ private fun ProfileCard(d: Driver, ui: UiState, modifier: Modifier, onLargeText:
                 .toggleable(value = d.largeText, role = Role.Switch, onValueChange = onLargeText)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             androidx.compose.material3.Icon(
                 CarIcons.TextSize, contentDescription = null,

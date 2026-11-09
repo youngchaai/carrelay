@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.carrelay.core.text.KoreanText
 import com.carrelay.vehicle.ui.HandoffSummary
+import com.carrelay.vehicle.ui.formatKm
 import com.carrelay.vehicle.ui.theme.CarIcons
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -233,7 +234,7 @@ fun HandoffOverlay(summary: HandoffSummary, onDone: () -> Unit) {
                     if (summary.drivingMillis < 60_000L) "1분 미만" else KoreanText.duration(summary.drivingMillis),
                 )
                 // 아래 운행기록부 줄과 같은 자릿수(소수 한 자리)로 맞춥니다.
-                summary.distanceKm?.takeIf { it >= 0.1 }?.let { SummaryStat(CarIcons.Route, "거리", "%.1fkm".format(it)) }
+                summary.distanceKm?.takeIf { it >= 0.1 }?.let { SummaryStat(CarIcons.Route, "거리", formatKm(it)) }
                 SummaryStat(
                     CarIcons.Memo, "다음 분께",
                     if (summary.memosLeft > 0) "메모 ${summary.memosLeft}개" else "메모 없음",
@@ -245,7 +246,7 @@ fun HandoffOverlay(summary: HandoffSummary, onDone: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.alpha(stats.value),
             )
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.width(360.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(ink.copy(alpha = 0.15f))) {
                     Box(Modifier.fillMaxWidth(fill.value).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(ink.copy(alpha = 0.6f)))
                 }

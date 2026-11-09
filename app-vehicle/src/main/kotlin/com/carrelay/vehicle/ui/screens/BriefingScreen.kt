@@ -47,9 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -254,20 +252,8 @@ private fun WelcomeView(ui: UiState, b: Briefing, carModifier: Modifier, onSkip:
         Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(Dimens.cardRadius))
+            // 번진 빛·얼룩 없이 단색에 가까운 바탕. 그 사람 색은 인사 한 줄과 넘어가는 선 두 곳에만 씁니다.
             .background(Brush.verticalGradient(listOf(Brand.NightTop, Brand.Night)))
-            .drawBehind {
-                // 차 뒤로 그 사람 색의 은은한 빛, 왼쪽 위에는 브랜드 청록 빛
-                val carCenter = Offset(size.width * 0.74f, size.height * 0.52f)
-                drawCircle(
-                    Brush.radialGradient(listOf(accent.copy(alpha = 0.26f), Color.Transparent), center = carCenter, radius = size.height * 0.62f),
-                    radius = size.height * 0.62f, center = carCenter,
-                )
-                val corner = Offset(size.width * 0.1f, size.height * 0.1f)
-                drawCircle(
-                    Brush.radialGradient(listOf(Brand.Teal.copy(alpha = 0.3f), Color.Transparent), center = corner, radius = size.height * 0.7f),
-                    radius = size.height * 0.7f, center = corner,
-                )
-            }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onSkip)
             .padding(horizontal = 56.dp, vertical = 32.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -421,7 +407,7 @@ private fun BriefingNotice(
         BriefingItem.Kind.SIGNAL_UNAVAILABLE -> Row(
             Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(CarIcons.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
             Text(item.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

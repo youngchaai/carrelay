@@ -148,7 +148,7 @@ fun StatusBadge(text: String, tone: StatusTone, modifier: Modifier = Modifier, i
         modifier
             .clip(RoundedCornerShape(12.dp))
             .background(tone.container)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -249,8 +249,8 @@ fun StatBlock(
     captionStyle: TextStyle = MaterialTheme.typography.bodyMedium,
     secondaryColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (icon != null) {
                 Icon(icon, contentDescription = null, tint = secondaryColor, modifier = Modifier.size((labelStyle.fontSize.value * 1.15f).dp))
             }
