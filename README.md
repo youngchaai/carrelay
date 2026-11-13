@@ -90,7 +90,7 @@ flowchart LR
 │  ├─ src/main/          화면·ViewModel·가상 차량·AAOS Car API
 │  ├─ src/simulated/     carrelay.pleosSdk=false 일 때: 가상 차량 연결
 │  └─ src/pleos/         carrelay.pleosSdk=true 일 때: Pleos Vehicle SDK 연결
-├─ apk/                  제출용 release APK (팀명_CarRelay_release.apk)
+├─ apk/                  제출용 release APK (영차_CarRelay_release.apk)
 └─ docs/                 개발환경 · 아키텍처 · 일정 · 기획 결정 사항 · 발표 목업(pt/)
 ```
 
@@ -102,7 +102,7 @@ flowchart LR
 
 자세한 순서: [docs/01_개발환경_세팅.md](docs/01_개발환경_세팅.md)
 
-단위 테스트(차량 없이 PC에서): `core/src/test` 우클릭 → Run Tests, 또는 `gradlew.bat :core:test` (현재 41개 통과)
+단위 테스트(차량 없이 PC에서): `core/src/test` 우클릭 → Run Tests, 또는 `gradlew.bat :core:test` (현재 69개 통과)
 
 > Windows 사용자 이름이 한글이면 프로젝트를 영문 경로(예: `C:\dev\carrelay`)에 두고 `GRADLE_USER_HOME` 을 영문 경로로 지정해야 빌드됩니다. → [docs/01 0번](docs/01_개발환경_세팅.md#0-windows-사용자-이름이-한글이면-중요)
 
@@ -159,6 +159,7 @@ flowchart LR
 | 항목 | 내용 |
 |---|---|
 | 에뮬레이터 | **Pleos Connect Emulator v2.1.0** (Android 14, API 34) |
+| 화면 규격 | **2560 × 1440 (가로), 160dpi** — Pleos Connect v2.1.0 AVD 기본값. 앱은 왼쪽 차량 패널을 뺀 오른쪽 영역에 그려지고, 가로 화면 기준으로 배치했습니다 |
 | 시스템 이미지 | Pleos Connect v2.1.0 APIs Intel x86_64 Atom System Image |
 | AVD 설정 | Form Factor **Automotive** → **Pleos Connect v2.1.0**, Default boot **Cold**, RAM **4 GB** |
 | 차량 값 조작 | Pleos Connect Virtual Console, 또는 앱 안의 **가상 차량** 패널 |
@@ -198,16 +199,17 @@ flowchart LR
 
 | 항목 | 내용 |
 |---|---|
-| 파일 | [`apk/CarRelay_release.apk`](apk/) **Pleos SDK 빌드** (17.7MB) · [`apk/CarRelay_virtual_release.apk`](apk/) 가상 차량 빌드 (9.6MB) |
-| 상태 | ✅ release 서명 빌드 **v1.1.0** (2026-11-03, 회사 차 모드·운행기록부 추가) · Pleos Connect Emulator v2.1.0 에서 설치·실행 확인 · 제출 때 파일 이름 앞에 팀명을 붙입니다 (`팀명_CarRelay_release.apk`) |
-| 어떤 것을 | Pleos Connect Emulator + Virtual Console 로 실제 SDK 연동을 보려면 **CarRelay_release.apk**, 콘솔 없이 앱 안의 **가상 차량** 패널로 전체 흐름을 보려면 **CarRelay_virtual_release.apk** |
+| 제출 파일 | [`apk/영차_CarRelay_release.apk`](apk/) — **Pleos SDK 빌드** (17.8MB, 팀명 `영차` · 앱 이름 `CarRelay`) |
+| 함께 넣은 파일 | [`apk/영차_CarRelay_virtual_release.apk`](apk/) — 가상 차량 빌드 (9.7MB, Virtual Console 없이 볼 때) |
+| 상태 | ✅ release 서명 빌드 **v1.1.0** (2026-11-09 빌드: 시작 화면·화면 피드백까지 반영) · Pleos Connect Emulator v2.1.0 에서 설치·실행 확인 |
+| 어떤 것을 | Pleos Connect Emulator + Virtual Console 로 실제 SDK 연동을 보려면 **영차_CarRelay_release.apk**, 콘솔 없이 앱 안의 **가상 차량** 패널로 전체 흐름을 보려면 **영차_CarRelay_virtual_release.apk** |
 | 설치 | AVD 를 켠 뒤 APK 파일을 에뮬레이터 창에 끌어다 놓거나, 아래 명령 실행 (두 파일은 같은 앱이라 하나만 설치) |
 
 ```bash
-adb install apk/CarRelay_release.apk
+adb install apk/영차_CarRelay_release.apk
 ```
 
-APK 가 GitHub 파일 용량 제한을 넘으면 [GitHub Releases](../../releases) 에 올리고 여기에 링크를 남깁니다.
+두 파일 모두 GitHub 파일 용량 제한(100MB)보다 작아 저장소 `apk/` 폴더에 바로 넣었습니다.
 
 ## Pleos SDK 연동 (2026-10-29 에뮬레이터에서 검증)
 
